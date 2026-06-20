@@ -5,7 +5,7 @@ from .models import Empresa, Proyecto, Partida, ModuloTorre
 class PartidaInline(admin.TabularInline):
     model = Partida
     extra = 1
-    fields = ('nombre', 'descripcion', 'activo')
+    fields = ('nombre', 'descripcion', 'item_serviu', 'activo')
     ordering = ('nombre',)
 
 

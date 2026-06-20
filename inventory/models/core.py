@@ -55,6 +55,7 @@ class Partida(models.Model):
     proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, null=True, blank=True, related_name='partidas')
     nombre = models.CharField(max_length=255)
     descripcion = models.TextField(blank=True, null=True)
+    item_serviu = models.CharField(max_length=255, blank=True, null=True, verbose_name='Item SERVIU')
     activo = models.BooleanField(default=True)
 
     objects = ActiveManager()

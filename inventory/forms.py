@@ -140,11 +140,12 @@ class BodegaForm(UppercaseMixin, forms.ModelForm):
 class PartidaForm(UppercaseMixin, forms.ModelForm):
     class Meta:
         model = Partida
-        fields = ['proyecto', 'nombre', 'descripcion', 'activo']
+        fields = ['proyecto', 'item_serviu', 'nombre', 'descripcion', 'activo']
         widgets = {
             'proyecto': forms.Select(attrs={'class': 'form-select'}),
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'item_serviu': forms.TextInput(attrs={'class': 'form-control'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
