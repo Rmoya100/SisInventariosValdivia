@@ -8,7 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.db import transaction
 from django.http import JsonResponse
-from ..models import Salida, DetalleSalida, Ingreso, DetalleIngreso, Transferencia, DetalleTransferencia, Producto, StockProyecto
+from ..models import Salida, DetalleSalida, Ingreso, DetalleIngreso, Transferencia, DetalleTransferencia, Producto, StockProyecto, Partida, ModuloTorre
 from ..forms import SalidaForm, DetalleSalidaFormSet, IngresoForm, DetalleIngresoFormSet, TransferenciaForm, DetalleTransferenciaFormSet
 from ..auditoria import registrar as audit
 
@@ -54,6 +54,20 @@ class SalidaView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
                     stocks_por_proyecto[pid] = {}
                 stocks_por_proyecto[pid][prod_id] = sp['cantidad']
             context['stocks_por_proyecto_json'] = stocks_por_proyecto
+
+            # Partidas y módulos/torres por proyecto (para filtrado JS al cambiar bodega)
+            partidas_por_proyecto = {}
+            for p in Partida.objects.filter(activo=True, proyecto__activo=True).values('idPartida', 'nombre', 'proyecto_id'):
+                pid = str(p['proyecto_id'])
+                partidas_por_proyecto.setdefault(pid, []).append({'id': p['idPartida'], 'nombre': p['nombre']})
+            context['partidas_por_proyecto_json'] = partidas_por_proyecto
+
+            modulos_por_proyecto = {}
+            for m in ModuloTorre.objects.filter(activo=True, proyecto__activo=True).values('idModuloTorre', 'nombre', 'proyecto_id'):
+                pid = str(m['proyecto_id'])
+                modulos_por_proyecto.setdefault(pid, []).append({'id': m['idModuloTorre'], 'nombre': m['nombre']})
+            context['modulos_por_proyecto_json'] = modulos_por_proyecto
+
             context['is_admin_salida'] = True
             for prod in productos:
                 prod['stock_disponible'] = prod['stock_actual']
@@ -746,3 +760,27 @@ def api_stock_disponible(request):
         label = 'Global'
 
     return JsonResponse({'stock': stock, 'label': label, 'producto': producto.nombre})
+
+
+@login_required
+def api_partidas_por_proyecto(request):
+    proyecto_id = request.GET.get('proyecto_id')
+    if not proyecto_id:
+        return JsonResponse({'partidas': []})
+    partidas = list(
+        Partida.objects.filter(activo=True, proyecto_id=proyecto_id, proyecto__activo=True)
+        .order_by('nombre').values('idPartida', 'nombre')
+    )
+    return JsonResponse({'partidas': partidas})
+
+
+@login_required
+def api_modulos_torre_por_proyecto(request):
+    proyecto_id = request.GET.get('proyecto_id')
+    if not proyecto_id:
+        return JsonResponse({'modulos_torre': []})
+    modulos = list(
+        ModuloTorre.objects.filter(activo=True, proyecto_id=proyecto_id, proyecto__activo=True)
+        .order_by('nombre').values('idModuloTorre', 'nombre')
+    )
+    return JsonResponse({'modulos_torre': modulos})

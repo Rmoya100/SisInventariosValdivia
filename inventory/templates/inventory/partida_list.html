@@ -1,5 +1,5 @@
 {% extends 'inventory/base.html' %}
-{% block title %}Modulo Torre{% endblock %}
+{% block title %}Partidas{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div class="d-flex align-items-center gap-3">
@@ -7,18 +7,18 @@
             <i class="fa-solid fa-arrow-left"></i>
         </a>
         <div>
-            <h2 class="fw-bold mb-0" style="font-size:1.35rem;">Módulo Torre</h2>
-            <p class="mb-0 text-muted" style="font-size:0.8rem;">Administra los módulos disponibles para salidas.</p>
+            <h2 class="fw-bold mb-0" style="font-size:1.35rem;">Partidas</h2>
+            <p class="mb-0 text-muted" style="font-size:0.8rem;">Administra las partidas asociadas a cada proyecto.</p>
         </div>
     </div>
-    <a href="{% url 'modulo_torre_crear' %}" class="btn btn-primary rounded-pill px-4 fw-semibold">
-        <i class="fa-solid fa-plus me-2"></i>Nuevo Módulo Torre
+    <a href="{% url 'partida_crear' %}" class="btn btn-primary rounded-pill px-4 fw-semibold">
+        <i class="fa-solid fa-plus me-2"></i>Nueva Partida
     </a>
 </div>
 
 <form method="get" class="mb-4">
     <div class="input-group shadow-sm rounded-pill overflow-hidden">
-        <input type="text" name="q" value="{{ request.GET.q }}" class="form-control border-0 px-4 py-2 bg-white" placeholder="Buscar por nombre o descripcion...">
+        <input type="text" name="q" value="{{ request.GET.q }}" class="form-control border-0 px-4 py-2 bg-white" placeholder="Buscar por nombre o proyecto...">
         <button class="btn btn-primary px-4 fw-bold" type="submit">Buscar</button>
     </div>
 </form>
@@ -36,19 +36,28 @@
                 </tr>
             </thead>
             <tbody>
-                {% for modulo in modulos_torre %}
+                {% for partida in partidas %}
                 <tr>
-                    <td class="ps-4 fw-bold text-primary">{{ modulo.nombre }}</td>
-                    <td>{{ modulo.proyecto.nombre|default:"—" }}</td>
-                    <td>{{ modulo.descripcion|default:"-" }}</td>
+                    <td class="ps-4 fw-bold text-primary">{{ partida.nombre }}</td>
                     <td>
-                        <span class="badge {% if modulo.activo %}bg-success{% else %}bg-secondary{% endif %} rounded-pill px-3">
-                            {% if modulo.activo %}Activo{% else %}Inactivo{% endif %}
+                        {% if partida.proyecto %}
+                            <span class="badge {% if partida.proyecto.activo %}bg-success{% else %}bg-secondary{% endif %} rounded-pill px-2 me-1" title="{% if partida.proyecto.activo %}Activo{% else %}Inactivo{% endif %}">
+                                {% if partida.proyecto.activo %}<i class="fa-solid fa-circle-check"></i>{% else %}<i class="fa-solid fa-circle-xmark"></i>{% endif %}
+                            </span>
+                            {{ partida.proyecto.nombre }}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ partida.descripcion|default:"-" }}</td>
+                    <td>
+                        <span class="badge {% if partida.activo %}bg-success{% else %}bg-secondary{% endif %} rounded-pill px-3">
+                            {% if partida.activo %}Activo{% else %}Inactivo{% endif %}
                         </span>
                     </td>
                     <td class="text-end pe-4">
                         <div class="d-flex gap-1 justify-content-end align-items-center">
-                            <a href="{% url 'modulo_torre_editar' modulo.pk %}"
+                            <a href="{% url 'partida_editar' partida.pk %}"
                                class="action-btn action-btn--primary" title="Editar">
                                 <i class="fa-solid fa-pen"></i>
                             </a>
@@ -59,10 +68,10 @@
                 <tr>
                     <td colspan="5" class="text-center py-5">
                         <div style="color:var(--gray-300); font-size:2.5rem; margin-bottom:.75rem;">
-                            <i class="fa-solid fa-building"></i>
+                            <i class="fa-solid fa-tags"></i>
                         </div>
-                        <p class="fw-semibold text-muted mb-1">No hay módulos torre registrados</p>
-                        <p class="text-muted" style="font-size:0.82rem;">Registra uno nuevo para usarlo en salidas.</p>
+                        <p class="fw-semibold text-muted mb-1">No hay partidas registradas</p>
+                        <p class="text-muted" style="font-size:0.82rem;">Crea una partida y asígnala a un proyecto activo.</p>
                     </td>
                 </tr>
                 {% endfor %}
@@ -72,7 +81,7 @@
 </div>
 
 {% if is_paginated %}
-<nav class="mt-4" aria-label="Paginacion de modulos torre">
+<nav class="mt-4" aria-label="Paginacion de partidas">
     <ul class="pagination justify-content-center">
         {% if page_obj.has_previous %}
         <li class="page-item">

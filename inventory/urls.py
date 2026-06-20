@@ -45,6 +45,11 @@ urlpatterns = [
     path('modulos-torre/crear/', views.ModuloTorreCreateView.as_view(), name='modulo_torre_crear'),
     path('modulos-torre/<int:pk>/editar/', views.ModuloTorreUpdateView.as_view(), name='modulo_torre_editar'),
 
+    # Partidas
+    path('partidas/', views.PartidaListView.as_view(), name='partidas'),
+    path('partidas/crear/', views.PartidaCreateView.as_view(), name='partida_crear'),
+    path('partidas/<int:pk>/editar/', views.PartidaUpdateView.as_view(), name='partida_editar'),
+
     # Transferencias
     path('transferencias/', views.TransferenciaListView.as_view(), name='transferencias'),
     path('transferencias/crear/', views.TransferenciaCreateView.as_view(), name='transferencia_crear'),
@@ -151,4 +156,6 @@ urlpatterns = [
     # API multi-proyecto
     path('api/proyectos-usuario/', views.get_proyectos_usuario, name='api_proyectos_usuario'),
     path('api/stock-disponible/', views.api_stock_disponible, name='api_stock_disponible'),
+    path('api/partidas-por-proyecto/', views.api_partidas_por_proyecto, name='api_partidas_por_proyecto'),
+    path('api/modulos-torre-por-proyecto/', views.api_modulos_torre_por_proyecto, name='api_modulos_torre_por_proyecto'),
 ]

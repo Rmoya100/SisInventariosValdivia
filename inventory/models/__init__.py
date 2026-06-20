@@ -10,7 +10,7 @@ from .historial import HistorialMovimiento
 
 __all__ = [
     'ActiveManager',
-    'Empresa', 'Proyecto', 'Bodega',
+    'Empresa', 'Proyecto', 'Bodega', 'Partida',
     'UnidadMedida', 'Proveedor', 'Categoria', 'Producto', 'StockProyecto',
     'Trabajador', 'ModuloTorre', 'Usuario', 'Permiso', 'SesionActiva',
     'OrdenCompra', 'DetalleCompra',

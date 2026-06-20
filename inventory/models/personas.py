@@ -29,7 +29,8 @@ class Trabajador(models.Model):
 
 class ModuloTorre(models.Model):
     idModuloTorre = models.AutoField(primary_key=True)
-    nombre = models.CharField(max_length=255, unique=True)
+    proyecto = models.ForeignKey(Proyecto, on_delete=models.SET_NULL, null=True, blank=True, related_name='modulos_torre')
+    nombre = models.CharField(max_length=255)
     descripcion = models.TextField(blank=True, null=True)
     activo = models.BooleanField(default=True)
 
@@ -38,6 +39,7 @@ class ModuloTorre(models.Model):
 
     class Meta:
         ordering = ['nombre']
+        unique_together = ('nombre', 'proyecto')
 
     def __str__(self):
         return self.nombre

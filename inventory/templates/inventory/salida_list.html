@@ -90,6 +90,8 @@
             {% if is_admin_salida %}
             {{ bodegas_info_json|json_script:"bodegas-info" }}
             {{ stocks_por_proyecto_json|json_script:"stocks-por-proyecto" }}
+            {{ partidas_por_proyecto_json|json_script:"partidas-por-proyecto" }}
+            {{ modulos_por_proyecto_json|json_script:"modulos-por-proyecto" }}
             {% endif %}
 
             <!-- Visible Custom Table -->
@@ -420,24 +422,47 @@
         // Initial Sync
         syncHiddenToCustom();
 
-        // Admin: actualizar stock al cambiar bodega
+        // Admin: actualizar stock, módulos/torres y partidas al cambiar bodega
         if (bodegasInfo && stocksPorProyecto) {
             const bodegaSelect = document.getElementById('id_bodega_salida');
+            const moduloSelect = document.getElementById('id_modulo_torre');
+            const partidaSelect = document.getElementById('id_partida_salida');
+            const partidasPorProyecto = document.getElementById('partidas-por-proyecto')
+                ? JSON.parse(document.getElementById('partidas-por-proyecto').textContent) : {};
+            const modulosPorProyecto = document.getElementById('modulos-por-proyecto')
+                ? JSON.parse(document.getElementById('modulos-por-proyecto').textContent) : {};
+
+            function repoblarSelect(selectEl, items, idKey, nombreKey, emptyLabel) {
+                if (!selectEl) return;
+                selectEl.innerHTML = `<option value="">${emptyLabel}</option>`;
+                (items || []).forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item[idKey];
+                    opt.textContent = item[nombreKey];
+                    selectEl.appendChild(opt);
+                });
+            }
+
             if (bodegaSelect) {
                 function actualizarStockPorBodega(bodegaId) {
                     if (!bodegaId) {
                         productOptions.forEach(p => { p.stock_disponible = p.stock_actual; });
                         if (proyectoStockLabel) proyectoStockLabel.textContent = 'Global';
+                        repoblarSelect(moduloSelect, [], 'id', 'nombre', '— Seleccionar Módulo/Torre —');
+                        repoblarSelect(partidaSelect, [], 'id', 'nombre', '— Seleccionar Partida —');
                         return;
                     }
                     const bodega = bodegasInfo.find(b => String(b.id) === String(bodegaId));
                     if (!bodega) return;
-                    const stocks = stocksPorProyecto[String(bodega.proyecto_id)] || {};
+                    const pid = String(bodega.proyecto_id);
+                    const stocks = stocksPorProyecto[pid] || {};
                     productOptions.forEach(p => {
                         p.stock_disponible = stocks[String(p.cod_prod)] !== undefined ? stocks[String(p.cod_prod)] : 0;
                     });
                     if (proyectoStockLabel) proyectoStockLabel.textContent = bodega.proyecto_nombre;
                     fillHiddenProductSelect();
+                    repoblarSelect(moduloSelect, modulosPorProyecto[pid] || [], 'id', 'nombre', '— Seleccionar Módulo/Torre —');
+                    repoblarSelect(partidaSelect, partidasPorProyecto[pid] || [], 'id', 'nombre', '— Seleccionar Partida —');
                 }
                 bodegaSelect.addEventListener('change', function() {
                     actualizarStockPorBodega(this.value);

@@ -10,8 +10,8 @@ from django.contrib.auth import logout
 from django.http import JsonResponse
 from django.db import transaction
 from django.db.models import Q
-from ..models import Usuario, Trabajador, Proyecto, Permiso, Empresa, ModuloTorre
-from ..forms import UsuarioRegistroForm, UsuarioEditarForm, TrabajadorForm, ProyectoForm, EmpresaForm, ModuloTorreForm
+from ..models import Usuario, Trabajador, Proyecto, Permiso, Empresa, ModuloTorre, Partida
+from ..forms import UsuarioRegistroForm, UsuarioEditarForm, TrabajadorForm, ProyectoForm, EmpresaForm, ModuloTorreForm, PartidaForm
 
 class UsuarioListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = 'inventory.view_usuario'
@@ -317,10 +317,10 @@ class ModuloTorreListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
     paginate_by = 25
 
     def get_queryset(self):
-        qs = ModuloTorre.all_objects.all().order_by('nombre')
+        qs = ModuloTorre.all_objects.all().select_related('proyecto').order_by('nombre')
         q = self.request.GET.get('q')
         if q:
-            qs = qs.filter(Q(nombre__icontains=q) | Q(descripcion__icontains=q))
+            qs = qs.filter(Q(nombre__icontains=q) | Q(descripcion__icontains=q) | Q(proyecto__nombre__icontains=q))
         return qs
 
 class ModuloTorreCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
@@ -347,6 +347,49 @@ class ModuloTorreUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
         context = super().get_context_data(**kwargs)
         context['titulo'] = 'Editar Modulo Torre'
         context['url_volver'] = reverse_lazy('modulos_torre')
+        return context
+
+class PartidaListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    permission_required = 'inventory.view_proyecto'
+    model = Partida
+    template_name = 'inventory/partida_list.html'
+    context_object_name = 'partidas'
+    paginate_by = 25
+
+    def get_queryset(self):
+        qs = Partida.all_objects.all().select_related('proyecto').order_by('proyecto__nombre', 'nombre')
+        q = self.request.GET.get('q')
+        if q:
+            qs = qs.filter(Q(nombre__icontains=q) | Q(proyecto__nombre__icontains=q))
+        return qs
+
+class PartidaCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
+    permission_required = 'inventory.add_proyecto'
+    model = Partida
+    form_class = PartidaForm
+    template_name = 'inventory/form.html'
+    success_url = reverse_lazy('partidas')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = 'Crear Partida'
+        context['url_volver'] = reverse_lazy('partidas')
+        return context
+
+class PartidaUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+    permission_required = 'inventory.change_proyecto'
+    model = Partida
+    form_class = PartidaForm
+    template_name = 'inventory/form.html'
+    success_url = reverse_lazy('partidas')
+
+    def get_queryset(self):
+        return Partida.all_objects.all()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = 'Editar Partida'
+        context['url_volver'] = reverse_lazy('partidas')
         return context
 
 class ProyectoListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):

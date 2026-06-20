@@ -15,13 +15,15 @@ from .compras import (
 from .movimientos import (
     SalidaView, IngresoView,
     TransferenciaListView, TransferenciaCreateView, TransferenciaUpdateView, recibir_transferencia,
-    trazabilidad_list, api_stock_disponible
+    trazabilidad_list, api_stock_disponible,
+    api_partidas_por_proyecto, api_modulos_torre_por_proyecto,
 )
 from .usuarios import (
     UsuarioListView, crear_usuario, editar_usuario, editar_permisos, cambiar_password,
     primer_ingreso_password,
     TrabajadorListView, TrabajadorCreateView, TrabajadorUpdateView,
     ModuloTorreListView, ModuloTorreCreateView, ModuloTorreUpdateView,
+    PartidaListView, PartidaCreateView, PartidaUpdateView,
     ProyectoListView, ProyectoCreateView, ProyectoUpdateView,
     get_proyectos_usuario, empresa_configuracion
 )

@@ -49,3 +49,21 @@ class Bodega(models.Model):
     def __str__(self):
         return self.nombre
 
+
+class Partida(models.Model):
+    idPartida = models.AutoField(primary_key=True)
+    proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, null=True, blank=True, related_name='partidas')
+    nombre = models.CharField(max_length=255)
+    descripcion = models.TextField(blank=True, null=True)
+    activo = models.BooleanField(default=True)
+
+    objects = ActiveManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['nombre']
+        unique_together = ('nombre', 'proyecto')
+
+    def __str__(self):
+        return self.nombre
+

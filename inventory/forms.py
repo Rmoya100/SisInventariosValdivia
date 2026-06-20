@@ -6,7 +6,7 @@ from .models import (
     DetalleCompra, DetalleIngreso, DetalleSalida, Trabajador, Usuario,
     Proyecto, Empresa, Transferencia, DetalleTransferencia, Bodega,
     Herramienta, Maquinaria, MantenimientoHerramienta, MantenimientoMaquinaria,
-    TransferenciaActivo, ModuloTorre, Gasto, Fase, StockProyecto
+    TransferenciaActivo, ModuloTorre, Gasto, Fase, StockProyecto, Partida
 )
 
 class UppercaseMixin:
@@ -136,6 +136,21 @@ class BodegaForm(UppercaseMixin, forms.ModelForm):
             'ubicacion': forms.TextInput(attrs={'class': 'form-control'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
+class PartidaForm(UppercaseMixin, forms.ModelForm):
+    class Meta:
+        model = Partida
+        fields = ['proyecto', 'nombre', 'descripcion', 'activo']
+        widgets = {
+            'proyecto': forms.Select(attrs={'class': 'form-select'}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['proyecto'].queryset = Proyecto.all_objects.all().order_by('nombre')
 
 class CategoriaForm(UppercaseMixin, forms.ModelForm):
     class Meta:
@@ -328,10 +343,11 @@ class OrdenCompraForm(UppercaseMixin, forms.ModelForm):
 class SalidaForm(UppercaseMixin, forms.ModelForm):
     class Meta:
         model = Salida
-        fields = ['fecha', 'modulo_torre', 'solicitante']
+        fields = ['fecha', 'modulo_torre', 'partida', 'solicitante']
         widgets = {
             'fecha': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'modulo_torre': forms.Select(attrs={'class': 'form-select'}),
+            'modulo_torre': forms.Select(attrs={'class': 'form-select', 'id': 'id_modulo_torre'}),
+            'partida': forms.Select(attrs={'class': 'form-select', 'id': 'id_partida_salida'}),
             'solicitante': forms.Select(attrs={'class': 'form-select'}),
         }
 
@@ -343,11 +359,25 @@ class SalidaForm(UppercaseMixin, forms.ModelForm):
             'ADMINISTRADOR DE OBRA',
             'ENCARGADO DE RECURSOS',
         ]
-        self.fields['modulo_torre'].queryset = ModuloTorre.objects.filter(activo=True).order_by('nombre')
         self.fields['solicitante'].queryset = Trabajador.objects.filter(
             activo=True,
             cargo__in=cargos_solicitantes,
         ).order_by('nombre', 'apellido')
+
+        proyecto = None
+        if self.user and not _es_admin(self.user):
+            proyecto = self.user.get_proyecto_movimiento()
+
+        if proyecto:
+            self.fields['modulo_torre'].queryset = ModuloTorre.objects.filter(
+                activo=True, proyecto=proyecto, proyecto__activo=True
+            ).order_by('nombre')
+            self.fields['partida'].queryset = Partida.objects.filter(
+                activo=True, proyecto=proyecto, proyecto__activo=True
+            ).order_by('nombre')
+        else:
+            self.fields['modulo_torre'].queryset = ModuloTorre.objects.filter(activo=True).order_by('nombre')
+            self.fields['partida'].queryset = Partida.objects.filter(activo=True).order_by('nombre')
 
         if _es_admin(self.user):
             self.fields['bodega'] = BodegaChoiceField(
@@ -565,12 +595,17 @@ class TrabajadorForm(UppercaseMixin, forms.ModelForm):
 class ModuloTorreForm(UppercaseMixin, forms.ModelForm):
     class Meta:
         model = ModuloTorre
-        fields = ['nombre', 'descripcion', 'activo']
+        fields = ['proyecto', 'nombre', 'descripcion', 'activo']
         widgets = {
+            'proyecto': forms.Select(attrs={'class': 'form-select'}),
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['proyecto'].queryset = Proyecto.all_objects.all().order_by('nombre')
 
 class HerramientaForm(UppercaseMixin, forms.ModelForm):
     class Meta:

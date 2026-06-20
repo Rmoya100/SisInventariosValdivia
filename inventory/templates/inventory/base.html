@@ -66,13 +66,6 @@
             </div>
             {% endif %}
 
-            {% if user_perms.pro_ver or is_admin %}
-            <a href="{% url 'proyectos' %}" class="nav-link-custom {% if 'proyecto' in request.path %}active{% endif %}">
-                <span class="nav-icon"><i class="fa-solid fa-building"></i></span>
-                <span class="nav-text">Proyectos</span>
-            </a>
-            {% endif %}
-
             <div class="sidebar-group">
                 <a href="#equiposCollapse" class="nav-link-custom d-flex justify-content-between align-items-center {% if 'herramientas' in request.path or 'maquinarias' in request.path or 'activos' in request.path %}active{% endif %}" data-bs-toggle="collapse" role="button" aria-expanded="{% if 'herramientas' in request.path or 'maquinarias' in request.path or 'activos' in request.path %}true{% else %}false{% endif %}" aria-controls="equiposCollapse">
                     <div>
@@ -250,15 +243,23 @@
 
             {% if is_admin %}
             <div class="sidebar-group">
-                <a href="#administrarCollapse" class="nav-link-custom d-flex justify-content-between align-items-center {% if 'usuario' in request.path or 'empresa' in request.path or 'modulos-torre' in request.path or 'fases' in request.path or 'unidades-medida' in request.path %}active{% endif %}" data-bs-toggle="collapse" role="button" aria-expanded="{% if 'usuario' in request.path or 'empresa' in request.path or 'modulos-torre' in request.path or 'fases' in request.path or 'unidades-medida' in request.path %}true{% else %}false{% endif %}" aria-controls="administrarCollapse">
+                <a href="#administrarCollapse" class="nav-link-custom d-flex justify-content-between align-items-center {% if 'usuario' in request.path or 'empresa' in request.path or 'modulos-torre' in request.path or 'fases' in request.path or 'unidades-medida' in request.path or 'proyecto' in request.path or 'partida' in request.path %}active{% endif %}" data-bs-toggle="collapse" role="button" aria-expanded="{% if 'usuario' in request.path or 'empresa' in request.path or 'modulos-torre' in request.path or 'fases' in request.path or 'unidades-medida' in request.path or 'proyecto' in request.path or 'partida' in request.path %}true{% else %}false{% endif %}" aria-controls="administrarCollapse">
                     <div>
                         <span class="nav-icon"><i class="fa-solid fa-sliders"></i></span>
                         <span class="nav-text">Administrar</span>
                     </div>
                     <span class="nav-arrow"><i class="fa-solid fa-chevron-right"></i></span>
                 </a>
-                <div class="collapse {% if 'usuario' in request.path or 'empresa' in request.path or 'modulos-torre' in request.path or 'fases' in request.path or 'unidades-medida' in request.path %}show{% endif %}" id="administrarCollapse">
+                <div class="collapse {% if 'usuario' in request.path or 'empresa' in request.path or 'modulos-torre' in request.path or 'fases' in request.path or 'unidades-medida' in request.path or 'proyecto' in request.path or 'partida' in request.path %}show{% endif %}" id="administrarCollapse">
                     <div class="sidebar-submenu-list">
+                        <a href="{% url 'proyectos' %}" class="submenu-link-custom {% if 'proyecto' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-building"></i></span>
+                            <span class="nav-text">Proyectos</span>
+                        </a>
+                        <a href="{% url 'partidas' %}" class="submenu-link-custom {% if 'partida' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-tags"></i></span>
+                            <span class="nav-text">Partidas</span>
+                        </a>
                         <a href="{% url 'unidades_medida' %}" class="submenu-link-custom {% if 'unidades-medida' in request.path %}active{% endif %}">
                             <span class="nav-icon"><i class="fa-solid fa-ruler"></i></span>
                             <span class="nav-text">Unidades de Medida</span>

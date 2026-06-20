@@ -1,6 +1,6 @@
 from django.db import models
 from django.db.models import Sum, F
-from .core import Proyecto, Bodega
+from .core import Proyecto, Bodega, Partida
 from .catalogo import Producto, StockProyecto
 from .compras import OrdenCompra
 from .personas import Trabajador, ModuloTorre, Usuario
@@ -73,6 +73,7 @@ class Salida(models.Model):
     proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, null=True, blank=True)
     bodega = models.ForeignKey(Bodega, on_delete=models.SET_NULL, null=True, blank=True, related_name='salidas')
     modulo_torre = models.ForeignKey(ModuloTorre, on_delete=models.PROTECT, null=True, blank=True, related_name='salidas')
+    partida = models.ForeignKey(Partida, on_delete=models.SET_NULL, null=True, blank=True, related_name='salidas')
     solicitante = models.ForeignKey(Trabajador, on_delete=models.PROTECT, null=True, blank=True, related_name='salidas_solicitadas')
 
     def __str__(self):
