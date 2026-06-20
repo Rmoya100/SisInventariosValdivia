@@ -1,0 +1,38 @@
+{% extends 'inventory/reportes/base_pdf.html' %}
+
+{% block title %}Listado de Categorías{% endblock %}
+{% block report_section %}Catálogo{% endblock %}
+{% block report_title %}Listado de Categorías{% endblock %}
+
+{% block report_summary %}
+<div class="summary-grid">
+    <div class="summary-card">
+        <div class="sum-label">Total Categorías</div>
+        <div class="sum-value">{{ categorias|length }}</div>
+        <div class="sum-sub">categorías activas</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>ID</th>
+            <th>Nombre de la Categoría</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for cat in categorias %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td class="mono muted">#{{ cat.idCategoria }}</td>
+            <td class="bold">{{ cat.nombre }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="text-center muted" style="padding:24px;">No hay categorías registradas.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

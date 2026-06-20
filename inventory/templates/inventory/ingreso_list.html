@@ -1,0 +1,300 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+{% block title %}Ingresos de Inventario{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'index' %}" class="btn btn-white text-muted shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Volver al inicio"><i class="fa-solid fa-arrow-left"></i></a>
+        <h2 class="fw-bold text-dark mb-0"><i class="fa-solid fa-arrow-right-to-bracket text-info me-2"></i>Ingresos de Inventario</h2>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'reporte_ingresos_pdf' %}" class="btn btn-white text-danger shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" target="_blank" title="Exportar PDF">
+            <i class="fa-solid fa-file-pdf fs-5"></i>
+        </a>
+        <a href="{% url 'exportar_ingresos_excel' %}" class="btn btn-white text-success shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Exportar Excel">
+            <i class="fa-solid fa-file-excel fs-5"></i>
+        </a>
+    </div>
+</div>
+
+{% if messages %}
+<div class="mb-3">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if user_perms.ing_crear or is_admin %}
+<div class="card shadow-lg border-0 rounded-4 mb-4">
+    <div class="card-body p-4">
+        <form method="post" id="ingreso-form">
+            {% csrf_token %}
+            <h5 class="fw-bold mb-3 text-primary"><i class="fa-solid fa-circle-plus me-2"></i>Registrar Nuevo Ingreso</h5>
+            <div class="row g-3 mb-4">
+                {% for field in form %}
+                <div class="col-md-3">
+                    <label for="{{ field.id_for_label }}" class="form-label fw-semibold text-muted">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                    <div class="text-danger small mt-1">{{ field.errors }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-list-check me-2 text-info"></i>Detalle del Ingreso</h5>
+
+            {# Pasar la lista de productos a JS para mapear ID → nombre #}
+            {{ productos_data|json_script:"productos-data" }}
+
+            {# Tabla visible para el usuario #}
+            <div class="table-responsive mb-4">
+                <table class="table table-sm align-middle" id="custom-detalles-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 45%;">Producto</th>
+                            <th style="width: 20%;" class="text-center">Cant. a Recepcionar</th>
+                            <th style="width: 15%;" class="text-end">Costo Unitario</th>
+                            <th style="width: 20%;" class="text-end">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="custom-detalles-body">
+                        <tr id="custom-empty-row">
+                            <td colspan="4" class="text-center text-muted py-4">
+                                <i class="fa-solid fa-circle-info me-2"></i>Seleccione una Orden de Compra para cargar sus productos.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            {# Formset Django oculto — aquí se construyen los campos reales que se envían al servidor #}
+            <div class="d-none" id="django-formset-container">
+                {{ detalles.management_form }}
+                {# Las filas se generan dinámicamente por JS; el management form es suficiente #}
+            </div>
+
+            <div class="d-flex justify-content-end align-items-center mt-3">
+                <button type="submit" id="btn-guardar-ingreso" class="btn btn-info text-white shadow-sm rounded-pill px-5 fw-bold" disabled>
+                    <i class="fa-solid fa-floppy-disk me-2"></i>Guardar Ingreso
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{# Lista de ingresos existentes #}
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-history me-2 text-info"></i>Ingresos Registrados</h5>
+            <form method="get" class="d-flex gap-2 align-items-center" style="min-width:280px;">
+                <input type="text" name="q" value="{{ request.GET.q }}" class="form-control form-control-sm" placeholder="Buscar por OC, doc, proyecto..." autocomplete="off">
+                {% if request.GET.q %}
+                <a href="?" class="btn btn-sm btn-outline-secondary" title="Limpiar búsqueda"><i class="fa-solid fa-xmark"></i></a>
+                {% endif %}
+            </form>
+        </div>
+        {% if ingresos %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Fecha</th>
+                        <th>Orden de Compra</th>
+                        <th>Tipo Doc.</th>
+                        <th>N° Doc.</th>
+                        <th>Proyecto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ingreso in ingresos %}
+                    <tr>
+                        <td>{{ ingreso.numIngreso }}</td>
+                        <td>{{ ingreso.fecha }}</td>
+                        <td>{{ ingreso.orden_compra }}</td>
+                        <td>{{ ingreso.tipo_documento }}</td>
+                        <td>{{ ingreso.num_documento }}</td>
+                        <td>{{ ingreso.proyecto }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'inventory/includes/paginacion.html' %}
+        {% else %}
+        <p class="text-muted text-center py-3">No hay ingresos registrados.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // ── Elementos del DOM ───────────────────────────────────────────────────
+    const ordenCompraSelect = document.getElementById("id_orden_compra");
+    const customBody        = document.getElementById("custom-detalles-body");
+    const emptyRow          = document.getElementById("custom-empty-row");
+    const formsetContainer  = document.getElementById("django-formset-container");
+    const totalFormsInput   = document.getElementById("id_detalles-TOTAL_FORMS");
+    const btnGuardar        = document.getElementById("btn-guardar-ingreso");
+
+    // Mapa producto_id → nombre
+    const productosData = JSON.parse(document.getElementById("productos-data").textContent);
+    const productMap = {};
+    productosData.forEach(p => { productMap[p.cod_prod] = p.nombre; });
+
+    // Formateador de moneda
+    const fmt = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 0 });
+
+    // Estado interno: lista de { producto_id, nombre, cantidad, precio }
+    let detallesData = [];
+
+    // ── Funciones ──────────────────────────────────────────────────────────
+
+    /** Renderiza la tabla visible y reconstruye el formset oculto */
+    function render() {
+        // Limpiar tabla visible
+        customBody.innerHTML = "";
+
+        if (detallesData.length === 0) {
+            customBody.appendChild(emptyRow);
+            btnGuardar.disabled = true;
+            totalFormsInput.value = 0;
+            // Limpiar filas ocultas del formset (excepto management_form)
+            syncFormset();
+            return;
+        }
+
+        btnGuardar.disabled = false;
+
+        detallesData.forEach(function (item, index) {
+            const subtotal = item.cantidad * item.precio;
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><strong>${item.nombre}</strong></td>
+                <td class="text-center">
+                    <input type="number"
+                           class="form-control form-control-sm mx-auto text-center custom-qty-input"
+                           value="${item.cantidad}"
+                           min="1"
+                           style="width:120px; border-radius:0.5rem;"
+                           data-index="${index}">
+                </td>
+                <td class="text-end">${fmt.format(item.precio)}</td>
+                <td class="text-end fw-bold text-info subtotal-cell" id="subtotal-${index}">${fmt.format(subtotal)}</td>
+            `;
+            customBody.appendChild(tr);
+        });
+
+        syncFormset();
+    }
+
+    /** Reconstruye los inputs ocultos del formset según detallesData */
+    function syncFormset() {
+        // Eliminar filas previas (no el management_form)
+        const oldRows = formsetContainer.querySelectorAll(".formset-row");
+        oldRows.forEach(r => r.remove());
+
+        totalFormsInput.value = detallesData.length;
+
+        detallesData.forEach(function (item, index) {
+            const prefix = "detalles";
+            const div = document.createElement("div");
+            div.className = "formset-row";
+
+            // id (vacío = nueva fila)
+            div.innerHTML = `
+                <input type="hidden" name="${prefix}-${index}-id"       value="">
+                <input type="hidden" name="${prefix}-${index}-producto"  value="${item.producto_id}">
+                <input type="hidden" name="${prefix}-${index}-cantidad"  value="${item.cantidad}"  class="hidden-cantidad" data-index="${index}">
+                <input type="hidden" name="${prefix}-${index}-precio"    value="${item.precio}">
+                <input type="hidden" name="${prefix}-${index}-DELETE"    value="">
+            `;
+            formsetContainer.appendChild(div);
+        });
+    }
+
+    // ── Event: cambio en select de OC ─────────────────────────────────────
+    if (ordenCompraSelect) {
+        ordenCompraSelect.addEventListener("change", function () {
+            const ordenId = this.value;
+            if (!ordenId) {
+                detallesData = [];
+                render();
+                return;
+            }
+
+            // Llamada al endpoint — la URL base se inyecta desde Django
+            const urlBase = "{% url 'orden_compra_detalle' orden_id=0 %}".replace('/0/', '/' + ordenId + '/');
+            fetch(urlBase, {
+                headers: { "X-Requested-With": "XMLHttpRequest" }
+            })
+            .then(function (response) {
+                if (!response.ok) throw new Error("Error HTTP: " + response.status);
+                return response.json();
+            })
+            .then(function (data) {
+                if (!Array.isArray(data) || data.length === 0) {
+                    detallesData = [];
+                    render();
+                    // Alerta amigable
+                    customBody.innerHTML = "";
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = '<td colspan="4" class="text-center text-warning py-3"><i class="fa-solid fa-triangle-exclamation me-2"></i>Esta OC no tiene productos en su detalle.</td>';
+                    customBody.appendChild(tr);
+                    return;
+                }
+
+                detallesData = data.map(function (d) {
+                    return {
+                        producto_id: d.producto_id,
+                        // Usar el nombre que ya viene en el JSON (más confiable)
+                        nombre:      d.nombre || productMap[d.producto_id] || ("Producto #" + d.producto_id),
+                        cantidad:    d.cantidad,
+                        precio:      d.precio
+                    };
+                });
+                render();
+            })
+            .catch(function (err) {
+                console.error("Error al cargar detalle de OC:", err);
+                customBody.innerHTML = "";
+                const tr = document.createElement("tr");
+                tr.innerHTML = '<td colspan="4" class="text-center text-danger py-3"><i class="fa-solid fa-circle-xmark me-2"></i>Error al cargar el detalle. Intente nuevamente.</td>';
+                customBody.appendChild(tr);
+            });
+        });
+    }
+
+    // ── Event: edición de cantidad en tabla visible ────────────────────────
+    customBody.addEventListener("input", function (e) {
+        if (!e.target.classList.contains("custom-qty-input")) return;
+        const index   = parseInt(e.target.dataset.index, 10);
+        const newQty  = parseFloat(e.target.value) || 0;
+
+        if (detallesData[index] !== undefined) {
+            detallesData[index].cantidad = newQty;
+
+            // Actualizar subtotal visible
+            const subtotalCell = document.getElementById("subtotal-" + index);
+            if (subtotalCell) {
+                subtotalCell.textContent = fmt.format(newQty * detallesData[index].precio);
+            }
+
+            // Actualizar campo oculto del formset
+            const hiddenQty = formsetContainer.querySelector(`.hidden-cantidad[data-index="${index}"]`);
+            if (hiddenQty) hiddenQty.value = newQty;
+        }
+    });
+
+    // Render inicial
+    render();
+});
+</script>
+{% endblock %}

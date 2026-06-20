@@ -1,0 +1,111 @@
+{% extends 'inventory/reportes/base_pdf.html' %}
+{% load humanize %}
+
+{% block title %}Órdenes de Compra{% endblock %}
+{% block report_section %}Compras{% endblock %}
+{% block report_title %}{{ titulo_reporte|default:"Reporte de Órdenes de Compra" }}{% endblock %}
+
+{% block report_filters %}
+{% if titulo_reporte and '' in titulo_reporte %}
+<div class="rpt-filters">Filtros aplicados en el título del reporte</div>
+{% endif %}
+{% endblock %}
+
+{% block report_summary %}
+{% with total=ordenes|length %}
+<div class="summary-grid">
+    <div class="summary-card">
+        <div class="sum-label">Total Órdenes</div>
+        <div class="sum-value">{{ total }}</div>
+    </div>
+    <div class="summary-card" style="border-left-color:#d97706;background:#fffbeb;">
+        <div class="sum-label" style="color:#92400e;">Pendientes</div>
+        <div class="sum-value" style="color:#78350f;">{{ pendientes }}</div>
+        <div class="sum-sub">órdenes sin recibir</div>
+    </div>
+    <div class="summary-card" style="border-left-color:#2563eb;background:#eff6ff;">
+        <div class="sum-label" style="color:#1d4ed8;">Recep. Parcial</div>
+        <div class="sum-value" style="color:#1e3a8a;">{{ parciales }}</div>
+    </div>
+    <div class="summary-card" style="border-left-color:#16a34a;background:#f0fdf4;">
+        <div class="sum-label" style="color:#166534;">Completadas</div>
+        <div class="sum-value" style="color:#14532d;">{{ completadas }}</div>
+    </div>
+</div>
+{% endwith %}
+{% endblock %}
+
+{% block content %}
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>N° Orden</th>
+            <th>Proveedor</th>
+            <th>Proyecto</th>
+            <th>Fecha</th>
+            <th>Forma de Pago</th>
+            <th>Estado</th>
+            <th class="text-right">Total OC</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for orden in ordenes %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td class="bold mono">#{{ orden.numCompra }}</td>
+            <td>{{ orden.proveedor.nombre }}</td>
+            <td>{{ orden.proyecto.nombre|default:"—" }}</td>
+            <td>{{ orden.fecha_compra|date:"d/m/Y" }}</td>
+            <td>{{ orden.forma_de_pago }}</td>
+            <td>
+                {% if orden.estado == 'PENDIENTE' %}
+                    <span class="badge badge-warning">Pendiente</span>
+                {% elif orden.estado == 'RECEPCION PARCIAL' %}
+                    <span class="badge badge-info">Parcial</span>
+                {% else %}
+                    <span class="badge badge-success">Completo</span>
+                {% endif %}
+            </td>
+            <td class="text-right bold">
+                ${{ orden.detalles.all|length|default:"—" }}
+            </td>
+        </tr>
+        {% if orden.detalles.all %}
+        <tr>
+            <td class="detail-cell" colspan="8">
+                <table class="detail-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th class="text-right">Cantidad</th>
+                            <th class="text-right">Precio Unit.</th>
+                            <th class="text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for det in orden.detalles.all %}
+                        <tr>
+                            <td>{{ det.producto.nombre }}</td>
+                            <td class="text-right">{{ det.cantidad }}</td>
+                            <td class="text-right">${{ det.precio|floatformat:0 }}</td>
+                            <td class="text-right bold">${{ det.subtotal|floatformat:0 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" class="text-right">Total Orden:</td>
+                            <td class="text-right">${{ orden.detalles.all|length }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </td>
+        </tr>
+        {% endif %}
+        {% empty %}
+        <tr><td colspan="8" class="text-center muted" style="padding:24px;">No hay órdenes registradas.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

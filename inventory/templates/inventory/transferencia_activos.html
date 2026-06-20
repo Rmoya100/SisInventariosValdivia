@@ -1,0 +1,142 @@
+{% extends 'inventory/base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <a href="{% url 'index' %}" class="btn btn-light shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Volver"><span class="fs-4">←</span></a>
+            <h2 class="fw-bold text-info mb-0">GDI de Activos (Herramientas / Maquinaria)</h2>
+        </div>
+    </div>
+    <div class="row">
+        <!-- Formulario -->
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success">Transferir Activo entre Bodegas</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                        {% endif %}
+                        <div class="mb-3">
+                            <label class="form-label">Bodega Origen</label>
+                            {{ form.bodega_origen }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Bodega Destino</label>
+                            {{ form.bodega_destino }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tipo de Activo</label>
+                            {{ form.tipo_activo }}
+                        </div>
+                        <div class="mb-3" id="div_herramienta">
+                            <label class="form-label">Herramienta</label>
+                            {{ form.herramienta }}
+                        </div>
+                        <div class="mb-3" id="div_maquinaria" style="display:none;">
+                            <label class="form-label">Maquinaria</label>
+                            {{ form.maquinaria }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Observaciones</label>
+                            {{ form.observacion }}
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 fw-bold">Registrar GDI</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Listado -->
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Historial de Transferencias de Activos</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#GDI</th>
+                                    <th>Tipo</th>
+                                    <th>Activo</th>
+                                    <th>Origen → Destino</th>
+                                    <th>Despacho</th>
+                                    <th>Despachó</th>
+                                    <th>Estado</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for t in transferencias %}
+                                <tr>
+                                    <td><strong>#{{ t.idTransferencia }}</strong></td>
+                                    <td>
+                                        {% if t.tipo_activo == 'HERRAMIENTA' %}
+                                            <span class="badge bg-info">Herramienta</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Maquinaria</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if t.herramienta %}{{ t.herramienta.nomHerramienta }}{% endif %}
+                                        {% if t.maquinaria %}{{ t.maquinaria.patente_o_codigo }}{% endif %}
+                                    </td>
+                                    <td>{{ t.bodega_origen }} → {{ t.bodega_destino }}</td>
+                                    <td>{{ t.fecha_despacho|date:"d/m/Y" }}</td>
+                                    <td>{{ t.usuario_despacha.username }}</td>
+                                    <td>
+                                        {% if t.estado == 'EN TRANSITO' %}
+                                            <span class="badge bg-warning text-dark">En Tránsito</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Recepción OK</span>
+                                            {% if t.fecha_recepcion %}<br><small class="text-muted">{{ t.fecha_recepcion|date:"d/m/Y" }}</small>{% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if t.estado == 'EN TRANSITO' %}
+                                            <a href="{% url 'transferencia_activo_recibir' t.idTransferencia %}" class="btn btn-sm btn-outline-success fw-bold">
+                                                Recepcionar (GRI)
+                                            </a>
+                                        {% else %}
+                                            <small class="text-muted">{{ t.usuario_recibe.username|default:"—" }}</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="8" class="text-center">No hay transferencias registradas.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tipoSelect = document.getElementById('id_tipo_activo');
+    const divHerramienta = document.getElementById('div_herramienta');
+    const divMaquinaria = document.getElementById('div_maquinaria');
+
+    function toggleFields() {
+        if (tipoSelect.value === 'MAQUINARIA') {
+            divHerramienta.style.display = 'none';
+            divMaquinaria.style.display = 'block';
+        } else {
+            divHerramienta.style.display = 'block';
+            divMaquinaria.style.display = 'none';
+        }
+    }
+    tipoSelect.addEventListener('change', toggleFields);
+    toggleFields();
+});
+</script>
+{% endblock %}

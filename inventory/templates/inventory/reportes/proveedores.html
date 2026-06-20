@@ -1,0 +1,46 @@
+{% extends 'inventory/reportes/base_pdf.html' %}
+
+{% block title %}Directorio de Proveedores{% endblock %}
+{% block report_section %}Proveedores{% endblock %}
+{% block report_title %}Directorio de Proveedores{% endblock %}
+
+{% block report_summary %}
+<div class="summary-grid">
+    <div class="summary-card">
+        <div class="sum-label">Total Proveedores</div>
+        <div class="sum-value">{{ proveedores|length }}</div>
+        <div class="sum-sub">proveedores activos</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Empresa / Razón Social</th>
+            <th>Contacto</th>
+            <th>Celular</th>
+            <th>Teléfono</th>
+            <th>Correo</th>
+            <th>Dirección</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for prov in proveedores %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td class="bold">{{ prov.nombre }}</td>
+            <td>{{ prov.contacto|default:"—" }}</td>
+            <td class="mono">{{ prov.cel_contacto|default:"—" }}</td>
+            <td class="mono">{{ prov.telefono|default:"—" }}</td>
+            <td>{{ prov.correo|default:"—" }}</td>
+            <td class="muted">{{ prov.direccion|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center muted" style="padding:24px;">No hay proveedores registrados.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

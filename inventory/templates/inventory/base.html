@@ -1,0 +1,402 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Control de Inventarios{% endblock %}</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'inventory/css/style.css' %}?v=3.1">
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <span class="fs-4 text-primary"><i class="fa-solid fa-box"></i></span>
+            <a href="{% url 'index' %}" class="sidebar-brand">Inventario Pro</a>
+        </div>
+        
+        <div class="sidebar-nav">
+            <a href="{% url 'index' %}" class="nav-link-custom {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+                <span class="nav-icon"><i class="fa-solid fa-house"></i></span>
+                <span class="nav-text">Inicio</span>
+            </a>
+
+            {% if user_perms.prod_ver or user_perms.cat_ver or is_admin %}
+            <div class="sidebar-group">
+                <a href="#adminProductosCollapse" class="nav-link-custom d-flex justify-content-between align-items-center {% if 'categoria' in request.path or 'producto' in request.path or 'bodega' in request.path %}active{% endif %}" data-bs-toggle="collapse" role="button" aria-expanded="{% if 'categoria' in request.path or 'producto' in request.path or 'bodega' in request.path %}true{% else %}false{% endif %}" aria-controls="adminProductosCollapse">
+                    <div>
+                        <span class="nav-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
+                        <span class="nav-text">AdminProductos</span>
+                    </div>
+                    <span class="nav-arrow"><i class="fa-solid fa-chevron-right"></i></span>
+                </a>
+                <div class="collapse {% if 'categoria' in request.path or 'producto' in request.path or 'bodega' in request.path %}show{% endif %}" id="adminProductosCollapse">
+                    <div class="sidebar-submenu-list">
+                        {% if user_perms.cat_ver or is_admin %}
+                        <a href="{% url 'categorias' %}" class="submenu-link-custom {% if 'categoria' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-tags"></i></span>
+                            <span class="nav-text">Categorías</span>
+                        </a>
+                        {% endif %}
+                        {% if user_perms.prod_ver or is_admin %}
+                        <a href="{% url 'productos' %}" class="submenu-link-custom {% if 'producto' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-box-open"></i></span>
+                            <span class="nav-text">Productos</span>
+                        </a>
+                        {% endif %}
+                        {% if is_admin %}
+                        <a href="{% url 'bodegas' %}" class="submenu-link-custom {% if 'bodega' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-warehouse"></i></span>
+                            <span class="nav-text">Bodegas</span>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if user_perms.pro_ver or is_admin %}
+            <a href="{% url 'proyectos' %}" class="nav-link-custom {% if 'proyecto' in request.path %}active{% endif %}">
+                <span class="nav-icon"><i class="fa-solid fa-building"></i></span>
+                <span class="nav-text">Proyectos</span>
+            </a>
+            {% endif %}
+
+            <div class="sidebar-group">
+                <a href="#equiposCollapse" class="nav-link-custom d-flex justify-content-between align-items-center {% if 'herramientas' in request.path or 'maquinarias' in request.path or 'activos' in request.path %}active{% endif %}" data-bs-toggle="collapse" role="button" aria-expanded="{% if 'herramientas' in request.path or 'maquinarias' in request.path or 'activos' in request.path %}true{% else %}false{% endif %}" aria-controls="equiposCollapse">
+                    <div>
+                        <span class="nav-icon"><i class="fa-solid fa-toolbox"></i></span>
+                        <span class="nav-text">Equipos</span>
+                    </div>
+                    <span class="nav-arrow"><i class="fa-solid fa-chevron-right"></i></span>
+                </a>
+                <div class="collapse {% if 'herramientas' in request.path or 'maquinarias' in request.path or 'activos' in request.path %}show{% endif %}" id="equiposCollapse">
+                    <div class="sidebar-submenu-list">
+                        <a href="{% url 'herramientas' %}" class="submenu-link-custom {% if request.path == '/herramientas/' %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-wrench"></i></span>
+                            <span class="nav-text">Herramientas</span>
+                        </a>
+                        <a href="{% url 'mantenimiento_herramientas' %}" class="submenu-link-custom {% if 'herramientas/mantenimiento' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-screwdriver-wrench"></i></span>
+                            <span class="nav-text">Reparaciones Herr.</span>
+                        </a>
+                        <a href="{% url 'maquinarias' %}" class="submenu-link-custom {% if request.path == '/maquinarias/' %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-tractor"></i></span>
+                            <span class="nav-text">Maquinaria</span>
+                        </a>
+                        <a href="{% url 'mantenimiento_maquinarias' %}" class="submenu-link-custom {% if 'maquinarias/mantenimiento' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-gear"></i></span>
+                            <span class="nav-text">Mant. Maquinaria</span>
+                        </a>
+                        <a href="{% url 'transferencias_activos' %}" class="submenu-link-custom {% if 'activos/transferencias' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-truck-fast"></i></span>
+                            <span class="nav-text">GDI Activos</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {% if user_perms.tra_ver or user_perms.ing_ver or user_perms.sal_ver or is_admin %}
+            <div class="sidebar-group">
+                <a href="#movInventarioCollapse" class="nav-link-custom d-flex justify-content-between align-items-center {% if 'transferencia' in request.path or 'ingreso' in request.path or 'salida' in request.path %}active{% endif %}" data-bs-toggle="collapse" role="button" aria-expanded="{% if 'transferencia' in request.path or 'ingreso' in request.path or 'salida' in request.path %}true{% else %}false{% endif %}" aria-controls="movInventarioCollapse">
+                    <div>
+                        <span class="nav-icon"><i class="fa-solid fa-rotate"></i></span>
+                        <span class="nav-text">Mov.Inventario</span>
+                    </div>
+                    <span class="nav-arrow"><i class="fa-solid fa-chevron-right"></i></span>
+                </a>
+                <div class="collapse {% if 'transferencia' in request.path or 'ingreso' in request.path or 'salida' in request.path %}show{% endif %}" id="movInventarioCollapse">
+                    <div class="sidebar-submenu-list">
+                        {% if user_perms.tra_ver or is_admin %}
+                        <a href="{% url 'transferencias' %}" class="submenu-link-custom {% if 'transferencia' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-truck"></i></span>
+                            <span class="nav-text">Transferencias</span>
+                        </a>
+                        {% endif %}
+                        {% if user_perms.ing_ver or is_admin %}
+                        <a href="{% url 'ingresos' %}" class="submenu-link-custom {% if 'ingreso' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-arrow-right-to-bracket"></i></span>
+                            <span class="nav-text">Ingresos</span>
+                        </a>
+                        {% endif %}
+                        {% if user_perms.sal_ver or is_admin %}
+                        <a href="{% url 'salidas' %}" class="submenu-link-custom {% if 'salida' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-arrow-right-from-bracket"></i></span>
+                            <span class="nav-text">Salidas</span>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if user_perms.prov_ver or user_perms.ord_ver or is_admin %}
+            <div class="sidebar-group">
+                <a href="#comprasCollapse" class="nav-link-custom d-flex justify-content-between align-items-center {% if 'proveedor' in request.path or 'orden' in request.path %}active{% endif %}" data-bs-toggle="collapse" role="button" aria-expanded="{% if 'proveedor' in request.path or 'orden' in request.path %}true{% else %}false{% endif %}" aria-controls="comprasCollapse">
+                    <div>
+                        <span class="nav-icon"><i class="fa-solid fa-briefcase"></i></span>
+                        <span class="nav-text">Compras</span>
+                    </div>
+                    <span class="nav-arrow"><i class="fa-solid fa-chevron-right"></i></span>
+                </a>
+                <div class="collapse {% if 'proveedor' in request.path or 'orden' in request.path %}show{% endif %}" id="comprasCollapse">
+                    <div class="sidebar-submenu-list">
+                        {% if user_perms.prov_ver or is_admin %}
+                        <a href="{% url 'proveedores' %}" class="submenu-link-custom {% if 'proveedor' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-dolly"></i></span>
+                            <span class="nav-text">Proveedores</span>
+                        </a>
+                        {% endif %}
+                        {% if user_perms.ord_ver or is_admin %}
+                        <a href="{% url 'ordenes' %}" class="submenu-link-custom {% if 'orden' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+                            <span class="nav-text">Ordenes de Compra</span>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if user_perms.trab_ver or is_admin %}
+            <a href="{% url 'trabajadores_list' %}" class="nav-link-custom {% if 'trabajador' in request.path %}active{% endif %}">
+                <span class="nav-icon"><i class="fa-solid fa-helmet-safety"></i></span>
+                <span class="nav-text">Trabajadores</span>
+            </a>
+            {% endif %}
+
+            {% if user_perms.gasto_ver or is_admin %}
+            <a href="{% url 'gastos' %}" class="nav-link-custom {% if 'gastos' in request.path %}active{% endif %}">
+                <span class="nav-icon"><i class="fa-solid fa-money-bill-wave"></i></span>
+                <span class="nav-text">Control de Gastos</span>
+            </a>
+            {% endif %}
+
+            {% if is_admin %}
+            <a href="{% url 'historial_auditoria' %}" class="nav-link-custom {% if 'auditoria' in request.path %}active{% endif %}">
+                <span class="nav-icon"><i class="fa-solid fa-shield-halved"></i></span>
+                <span class="nav-text">Auditoría</span>
+            </a>
+            {% endif %}
+
+            <div class="border-top border-secondary my-3 opacity-25"></div>
+
+            <div class="sidebar-group">
+                <a href="#reportesCollapse" class="nav-link-custom d-flex justify-content-between align-items-center {% if 'graficos' in request.path or 'reportes' in request.path %}active{% endif %}" data-bs-toggle="collapse" role="button" aria-expanded="{% if 'graficos' in request.path or 'reportes' in request.path %}true{% else %}false{% endif %}" aria-controls="reportesCollapse">
+                    <div>
+                        <span class="nav-icon"><i class="fa-solid fa-chart-pie"></i></span>
+                        <span class="nav-text">Reportes</span>
+                    </div>
+                    <span class="nav-arrow"><i class="fa-solid fa-chevron-right"></i></span>
+                </a>
+                <div class="collapse {% if 'graficos' in request.path or 'reportes' in request.path %}show{% endif %}" id="reportesCollapse">
+                    <div class="sidebar-submenu-list">
+                        <a href="{% url 'graficos' %}" class="submenu-link-custom {% if 'graficos' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span>
+                            <span class="nav-text">Dashboard</span>
+                        </a>
+                        <a href="{% url 'reporte_compras_listado' %}" class="submenu-link-custom {% if 'reportes/compras/listado' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-file-pdf"></i></span>
+                            <span class="nav-text">Reporte Órdenes</span>
+                        </a>
+                        <a href="{% url 'reporte_stock_bodega_listado' %}" class="submenu-link-custom {% if 'reportes/stock-bodega' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-boxes-stacked"></i></span>
+                            <span class="nav-text">Stock por Bodega</span>
+                        </a>
+                        <a href="{% url 'trazabilidad_list' %}" class="submenu-link-custom {% if 'reportes/trazabilidad' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></span>
+                            <span class="nav-text">Trazabilidad</span>
+                        </a>
+                        <a href="{% url 'reporte_movimientos_producto_listado' %}" class="submenu-link-custom {% if 'reportes/movimientos-producto' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                            <span class="nav-text">Movimientos Producto</span>
+                        </a>
+                        <a href="{% url 'reporte_movimiento_general_listado' %}" class="submenu-link-custom {% if 'reportes/movimiento-general' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-money-bill-trend-up"></i></span>
+                            <span class="nav-text">Mov. General</span>
+                        </a>
+                        <a href="{% url 'reporte_gasto_modulo_listado' %}" class="submenu-link-custom {% if 'reportes/gasto-modulo-torre' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+                            <span class="nav-text">Gasto Módulo/Torre</span>
+                        </a>
+                        <a href="{% url 'reporte_herramientas_pdf' %}" class="submenu-link-custom" target="_blank">
+                            <span class="nav-icon"><i class="fa-solid fa-wrench"></i></span>
+                            <span class="nav-text">Rep. Herramientas</span>
+                        </a>
+                        <a href="{% url 'reporte_maquinarias_pdf' %}" class="submenu-link-custom" target="_blank">
+                            <span class="nav-icon"><i class="fa-solid fa-tractor"></i></span>
+                            <span class="nav-text">Rep. Maquinarias</span>
+                        </a>
+                        {% if is_admin %}
+                        <a href="{% url 'reporte_movimientos_usuario' %}" class="submenu-link-custom {% if 'reportes/movimientos-usuario' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-user-clock"></i></span>
+                            <span class="nav-text">Movim. Usuario</span>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% if is_admin %}
+            <div class="sidebar-group">
+                <a href="#administrarCollapse" class="nav-link-custom d-flex justify-content-between align-items-center {% if 'usuario' in request.path or 'empresa' in request.path or 'modulos-torre' in request.path or 'fases' in request.path or 'unidades-medida' in request.path %}active{% endif %}" data-bs-toggle="collapse" role="button" aria-expanded="{% if 'usuario' in request.path or 'empresa' in request.path or 'modulos-torre' in request.path or 'fases' in request.path or 'unidades-medida' in request.path %}true{% else %}false{% endif %}" aria-controls="administrarCollapse">
+                    <div>
+                        <span class="nav-icon"><i class="fa-solid fa-sliders"></i></span>
+                        <span class="nav-text">Administrar</span>
+                    </div>
+                    <span class="nav-arrow"><i class="fa-solid fa-chevron-right"></i></span>
+                </a>
+                <div class="collapse {% if 'usuario' in request.path or 'empresa' in request.path or 'modulos-torre' in request.path or 'fases' in request.path or 'unidades-medida' in request.path %}show{% endif %}" id="administrarCollapse">
+                    <div class="sidebar-submenu-list">
+                        <a href="{% url 'unidades_medida' %}" class="submenu-link-custom {% if 'unidades-medida' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-ruler"></i></span>
+                            <span class="nav-text">Unidades de Medida</span>
+                        </a>
+                        <a href="{% url 'modulos_torre' %}" class="submenu-link-custom {% if 'modulos-torre' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-table-cells-large"></i></span>
+                            <span class="nav-text">Modulo Torre</span>
+                        </a>
+                        <a href="{% url 'fases' %}" class="submenu-link-custom {% if 'fases' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-layer-group"></i></span>
+                            <span class="nav-text">Fases</span>
+                        </a>
+                        <a href="{% url 'empresa_configuracion' %}" class="submenu-link-custom {% if 'empresa' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-building"></i></span>
+                            <span class="nav-text">Empresa</span>
+                        </a>
+                        <a href="{% url 'usuarios_list' %}" class="submenu-link-custom {% if 'usuario' in request.path %}active{% endif %}">
+                            <span class="nav-icon"><i class="fa-solid fa-users-gear"></i></span>
+                            <span class="nav-text">Usuarios</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <!-- Overlay for mobile -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- Main Wrapper -->
+    <div id="main-wrapper">
+        <!-- Top Header -->
+        <header class="top-header">
+            <div class="d-flex align-items-center">
+                <button id="sidebar-toggle" title="Contraer/Expandir menú"><i class="fa-solid fa-bars"></i></button>
+                <h5 class="mb-0 ms-3 fw-bold text-muted d-none d-sm-block">Bienvenido, <span class="text-primary">{{ request.user.username }}</span></h5>
+            </div>
+
+            <div class="dropdown">
+                <button class="btn btn-white border-0 dropdown-toggle shadow-sm rounded-pill px-4 py-2 bg-white d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width:28px; height:28px; font-size:12px;">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    Mi Cuenta
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 mt-2">
+                    <li class="p-3 pb-2">
+                        <div class="fw-bold text-dark">{{ request.user.get_full_name|default:request.user.username }}</div>
+                        <small class="text-muted">Rol: {% if is_admin %}Administrador{% else %}Usuario{% endif %}</small>
+                    </li>
+                    <li><hr class="dropdown-divider opacity-25"></li>
+                    <li>
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="dropdown-item text-danger py-2 d-flex align-items-center gap-2" onclick="sessionStorage.removeItem('session_active')">
+                                <i class="fa-solid fa-arrow-right-from-bracket"></i> Cerrar Sesión
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <main class="p-4 p-lg-5">
+            {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'primary' }} alert-dismissible fade show rounded-4 shadow-sm mb-4 border-0" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            {% if alerta_maquinarias_count or alerta_herramientas_count %}
+            <div class="alert alert-warning alert-dismissible fade show rounded-4 shadow-sm mb-4 border-0 d-flex align-items-center gap-3" role="alert" style="border-left: 4px solid #d97706 !important;">
+                <i class="fa-solid fa-triangle-exclamation fs-5 text-warning flex-shrink-0"></i>
+                <div class="flex-grow-1">
+                    <strong>Alertas de equipos:</strong>
+                    {% if alerta_maquinarias_count %}
+                    <a href="{% url 'mantenimiento_maquinarias' %}" class="text-warning fw-bold ms-2">
+                        <i class="fa-solid fa-tractor me-1"></i>{{ alerta_maquinarias_count }} maquinaria{{ alerta_maquinarias_count|pluralize:"s" }} requiere{{ alerta_maquinarias_count|pluralize:"n" }} mantención
+                    </a>
+                    {% endif %}
+                    {% if alerta_maquinarias_count and alerta_herramientas_count %}&nbsp;·&nbsp;{% endif %}
+                    {% if alerta_herramientas_count %}
+                    <a href="{% url 'mantenimiento_herramientas' %}" class="text-warning fw-bold">
+                        <i class="fa-solid fa-wrench me-1"></i>{{ alerta_herramientas_count }} herramienta{{ alerta_herramientas_count|pluralize:"s" }} en reparación
+                    </a>
+                    {% endif %}
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+            </div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- jQuery (Requerido por DataTables) -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <!-- Script data -->
+    {% if user.is_authenticated %}
+    <div id="session-data" 
+         data-authenticated="true" 
+         data-logout-url="{% url 'logout' %}" 
+         data-csrf-token="{{ csrf_token }}" 
+         style="display:none;"></div>
+    {% endif %}
+
+    <script src="{% static 'inventory/js/main.js' %}"></script>
+    <script src="{% static 'inventory/js/sidebar.js' %}"></script>
+    <script src="{% static 'inventory/js/session.js' %}"></script>
+    
+    <script>
+    // Inicialización general de DataTables para cualquier tabla con la clase 'datatable'
+    $(document).ready(function() {
+        if ($('.datatable').length) {
+            $('.datatable').DataTable({
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
+                },
+                "pageLength": 25,
+                "ordering": true,
+                "responsive": true,
+                "dom": '<"d-flex justify-content-between align-items-center mb-3"f>rt<"d-flex justify-content-between align-items-center mt-3"ip>',
+            });
+        }
+    });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,92 @@
+{% extends 'inventory/reportes/base_pdf.html' %}
+{% load static %}
+
+{% block title %}Inventario de Herramientas{% endblock %}
+{% block report_section %}Equipos{% endblock %}
+{% block report_title %}Inventario de Herramientas{% endblock %}
+
+{% block extra_styles %}
+<style>
+    @page { size: A4 landscape; margin: 15mm; }
+</style>
+{% endblock %}
+
+{% block report_summary %}
+<div class="summary-grid">
+    <div class="summary-card">
+        <div class="sum-label">Total Herramientas</div>
+        <div class="sum-value">{{ herramientas|length }}</div>
+    </div>
+    <div class="summary-card" style="border-left-color:#16a34a;background:#f0fdf4;">
+        <div class="sum-label" style="color:#166534;">Estado Bueno</div>
+        <div class="sum-value" style="color:#14532d;">
+            {% for h in herramientas %}{% if h.estado == 'BUENO' %}{{ forloop.counter }}{% endif %}{% endfor %}
+        </div>
+    </div>
+    <div class="summary-card" style="border-left-color:#d97706;background:#fffbeb;">
+        <div class="sum-label" style="color:#92400e;">Estado Regular</div>
+        <div class="sum-value" style="color:#78350f;">
+            {% for h in herramientas %}{% if h.estado == 'REGULAR' %}{{ forloop.counter }}{% endif %}{% endfor %}
+        </div>
+    </div>
+    <div class="summary-card" style="border-left-color:#dc2626;background:#fef2f2;">
+        <div class="sum-label" style="color:#991b1b;">Estado Malo</div>
+        <div class="sum-value" style="color:#7f1d1d;">
+            {% for h in herramientas %}{% if h.estado == 'MALO' %}{{ forloop.counter }}{% endif %}{% endfor %}
+        </div>
+    </div>
+    <div class="summary-card" style="border-left-color:#7c3aed;background:#f5f3ff;">
+        <div class="sum-label" style="color:#5b21b6;">En Reparación</div>
+        <div class="sum-value" style="color:#4c1d95;">
+            {% for h in herramientas %}{% if h.en_reparacion %}{{ forloop.counter }}{% endif %}{% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Código</th>
+            <th>Nombre Herramienta</th>
+            <th>Marca</th>
+            <th class="text-center">Estado</th>
+            <th>Bodega Actual</th>
+            <th class="text-center">Reparación</th>
+            <th>Observaciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in herramientas %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td class="mono bold">{{ item.codigo }}</td>
+            <td class="bold">{{ item.nomHerramienta }}</td>
+            <td>{{ item.marca }}</td>
+            <td class="text-center">
+                {% if item.estado == 'BUENO' %}
+                    <span class="badge badge-success">Bueno</span>
+                {% elif item.estado == 'REGULAR' %}
+                    <span class="badge badge-warning">Regular</span>
+                {% else %}
+                    <span class="badge badge-danger">Malo</span>
+                {% endif %}
+            </td>
+            <td>{{ item.bodega_actual|default:"Sin Asignar" }}</td>
+            <td class="text-center">
+                {% if item.en_reparacion %}
+                    <span class="badge badge-purple">En Taller</span>
+                {% else %}
+                    <span class="muted">&#10003; Disponible</span>
+                {% endif %}
+            </td>
+            <td class="muted">{{ item.observaciones|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center muted" style="padding:24px;">No hay herramientas registradas.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

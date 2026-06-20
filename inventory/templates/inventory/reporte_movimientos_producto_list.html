@@ -1,0 +1,146 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+{% block title %}Reporte de Movimientos de Producto{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'index' %}" class="btn btn-light shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Volver al inicio"><span class="fs-4">←</span></a>
+        <h2 class="fw-bold text-info mb-0">Reporte de Movimientos de Producto</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <h5 class="fw-bold text-muted mb-0">Historial detallado de ingresos, salidas y traspasos (GDI)</h5>
+            {% if producto_seleccionado and bodega_seleccionada %}
+            <div class="d-flex gap-2">
+                <a href="{% url 'reporte_movimientos_producto_pdf' %}?producto={{ producto_id }}&bodega={{ bodega_id }}" class="btn btn-white text-danger shadow-sm rounded-circle d-flex align-items-center justify-content-center btn-pdf-circle" target="_blank" title="Exportar PDF">
+                    <i class="fa-solid fa-file-pdf fs-5"></i>
+                </a>
+                <a href="{% url 'exportar_movimientos_producto_excel' %}?producto={{ producto_id }}&bodega={{ bodega_id }}" class="btn btn-outline-success shadow-sm rounded-pill px-4 fw-bold">📊 Exportar Excel</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <form method="get" class="row g-3 mb-4 align-items-end">
+            <!-- Selector de Producto (Obligatorio) -->
+            <div class="col-md-5">
+                <label for="filter_producto" class="form-label fw-semibold text-muted">Producto *</label>
+                <select name="producto" id="filter_producto" class="form-select" required>
+                    <option value="">Seleccione un producto...</option>
+                    {% for producto in productos %}
+                    <option value="{{ producto.cod_prod }}" {% if producto_id == producto.cod_prod %}selected{% endif %}>{{ producto.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Selector de Bodega (Depende del rol) -->
+            <div class="col-md-5">
+                {% if is_admin %}
+                <label for="filter_bodega" class="form-label fw-semibold text-muted">Bodega *</label>
+                <select name="bodega" id="filter_bodega" class="form-select" required>
+                    <option value="">Seleccione una bodega...</option>
+                    {% for b in bodegas %}
+                    <option value="{{ b.idBodega }}" {% if bodega_id == b.idBodega %}selected{% endif %}>
+                        {{ b.nombre }} {% if b.proyecto %}({{ b.proyecto.nombre }}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                <label class="form-label fw-semibold text-muted">Bodega (Asignada según su proyecto)</label>
+                <input type="text" class="form-control bg-light" value="{% if bodega_seleccionada %}{{ bodega_seleccionada.nombre }}{% else %}Sin bodega activa asignada{% endif %}" readonly disabled>
+                <input type="hidden" name="bodega" value="{{ bodega_seleccionada.idBodega }}">
+                {% endif %}
+            </div>
+
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-info text-white w-100 fw-bold rounded-pill py-2 shadow-sm">Filtrar</button>
+            </div>
+        </form>
+
+        {% if not producto_seleccionado or not bodega_seleccionada %}
+        <div class="alert alert-info border-0 rounded-4 p-4 text-center">
+            <span class="fs-1 d-block mb-2">📦</span>
+            <h5 class="fw-bold">Consulta de Movimientos</h5>
+            <p class="text-muted mb-0">Seleccione un producto {% if is_admin %}y una bodega{% endif %} arriba para ver el listado de movimientos de inventario y stock acumulado.</p>
+        </div>
+        {% else %}
+
+        <!-- Resumen de Stock -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6 col-lg-4">
+                <div class="card bg-light border-0 rounded-4 shadow-sm h-100">
+                    <div class="card-body p-3 d-flex align-items-center">
+                        <div class="bg-info-subtle text-info p-3 rounded-3 me-3">
+                            <i class="fa-solid fa-calculator fs-4"></i>
+                        </div>
+                        <div>
+                            <span class="text-muted small d-block">Total Movimientos</span>
+                            <span class="fs-4 fw-bold text-dark">{{ total_movimientos }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="card bg-success-subtle border-0 rounded-4 shadow-sm h-100" style="border-left: 5px solid #198754 !important;">
+                    <div class="card-body p-3 d-flex align-items-center">
+                        <div class="bg-success text-white p-3 rounded-3 me-3">
+                            <i class="fa-solid fa-boxes-stacked fs-4"></i>
+                        </div>
+                        <div>
+                            <span class="text-success-emphasis small d-block">Stock Real Actual</span>
+                            <span class="fs-4 fw-bold text-success">{{ stock_real }} un.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table align-middle custom-table">
+                <thead class="table-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Referencia</th>
+                        <th>Detalle / Destinatario</th>
+                        <th class="text-end">Cantidad</th>
+                        <th class="text-end">Stock parcial</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movimiento in movimientos %}
+                    <tr>
+                        <td>{{ movimiento.fecha|date:'d/m/Y' }}</td>
+                        <td>
+                            {% if movimiento.tipo == 'Ingreso' %}
+                            <span class="badge text-bg-success rounded-pill px-3 py-1"><i class="fa-solid fa-arrow-down me-1"></i>Ingreso</span>
+                            {% elif movimiento.tipo == 'Salida' %}
+                            <span class="badge text-bg-danger rounded-pill px-3 py-1"><i class="fa-solid fa-arrow-up me-1"></i>Salida</span>
+                            {% elif 'Recepción' in movimiento.tipo %}
+                            <span class="badge text-bg-primary rounded-pill px-3 py-1"><i class="fa-solid fa-truck-ramp-box me-1"></i>GDI Rec.</span>
+                            {% else %}
+                            <span class="badge text-bg-warning rounded-pill px-3 py-1"><i class="fa-solid fa-truck me-1"></i>GDI Desp.</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold">{{ movimiento.referencia }}</td>
+                        <td>{{ movimiento.detalle_ref }}</td>
+                        <td class="text-end fw-bold {% if movimiento.cantidad > 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if movimiento.cantidad > 0 %}+{% endif %}{{ movimiento.cantidad }}
+                        </td>
+                        <td class="text-end fw-bold text-secondary">{{ movimiento.stock_acumulado }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">No se registraron movimientos para este producto en la bodega seleccionada.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'inventory/includes/paginacion.html' %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

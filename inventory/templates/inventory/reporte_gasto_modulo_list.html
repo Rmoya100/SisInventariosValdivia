@@ -1,0 +1,528 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+{% block title %}Reporte de Gasto de Material Valorizado{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        {% if es_detalle %}
+        <a href="{% url 'reporte_gasto_modulo_listado' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" class="btn btn-light shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Volver al resumen general"><span class="fs-4">←</span></a>
+        <h2 class="fw-bold text-info mb-0">Detalle de Gasto: {{ modulo_nombre }}</h2>
+        {% else %}
+        <a href="{% url 'index' %}" class="btn btn-light shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Volver al inicio"><span class="fs-4">←</span></a>
+        <h2 class="fw-bold text-info mb-0">Gasto de Material por Módulo / Torre</h2>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Tarjetas de Resumen -->
+<div class="row g-4 mb-4">
+    {% if es_detalle %}
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 bg-white p-3 h-100">
+            <div class="d-flex align-items-center gap-3">
+                <div class="bg-info-subtle text-info rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                    <i class="fa-solid fa-layer-group fs-4"></i>
+                </div>
+                <div>
+                    <p class="text-muted mb-0 fw-semibold" style="font-size: 13px;">Módulo / Torre</p>
+                    <h4 class="fw-bold mb-0 text-dark">{{ modulo_nombre }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 bg-white p-3 h-100">
+            <div class="d-flex align-items-center gap-3">
+                <div class="bg-warning-subtle text-warning rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                    <i class="fa-solid fa-box fs-4"></i>
+                </div>
+                <div>
+                    <p class="text-muted mb-0 fw-semibold" style="font-size: 13px;">Material Entregado</p>
+                    <h4 class="fw-bold mb-0 text-dark">{{ total_cantidades }} un.</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 bg-white p-3 h-100" style="border-left: 4px solid #10b981 !important;">
+            <div class="d-flex align-items-center gap-3">
+                <div class="bg-success-subtle text-success rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                    <i class="fa-solid fa-dollar-sign fs-4"></i>
+                </div>
+                <div>
+                    <p class="text-muted mb-0 fw-semibold" style="font-size: 13px;">Total Gastado</p>
+                    <h4 class="fw-bold mb-0 text-success">${{ total_modulo|floatformat:0 }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 bg-white p-3 h-100">
+            <div class="d-flex align-items-center gap-3">
+                <div class="bg-info-subtle text-info rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                    <i class="fa-solid fa-cubes fs-4"></i>
+                </div>
+                <div>
+                    <p class="text-muted mb-0 fw-semibold" style="font-size: 13px;">Módulos con Gastos</p>
+                    <h4 class="fw-bold mb-0 text-dark">{{ gastos|length }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 bg-white p-3 h-100">
+            <div class="d-flex align-items-center gap-3">
+                <div class="bg-warning-subtle text-warning rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                    <i class="fa-solid fa-box fs-4"></i>
+                </div>
+                <div>
+                    <p class="text-muted mb-0 fw-semibold" style="font-size: 13px;">Total Cantidad Material</p>
+                    <h4 class="fw-bold mb-0 text-dark">{{ total_cantidades_general }} un.</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 bg-white p-3 h-100" style="border-left: 4px solid #10b981 !important;">
+            <div class="d-flex align-items-center gap-3">
+                <div class="bg-success-subtle text-success rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                    <i class="fa-solid fa-dollar-sign fs-4"></i>
+                </div>
+                <div>
+                    <p class="text-muted mb-0 fw-semibold" style="font-size: 13px;">Total Gastado General</p>
+                    <h4 class="fw-bold mb-0 text-success">${{ total_general|floatformat:0 }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SECCIÓN DE GRÁFICO
+══════════════════════════════════════════════════════════════ -->
+{% if es_detalle %}
+{% if chart_labels %}
+<div class="card border-0 shadow-sm rounded-4 mb-4" id="grafico-card">
+    <div class="card-body p-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-3 d-flex align-items-center justify-content-center" style="width:40px;height:40px;background:rgba(79,70,229,.1);">
+                    <i class="fa-solid fa-chart-bar" style="color:#4f46e5;font-size:16px;"></i>
+                </div>
+                <div>
+                    <p class="fw-bold mb-0 text-dark" style="font-size:15px;">Top Productos con Mayor Gasto — {{ modulo_nombre }}</p>
+                    <p class="text-muted mb-0" style="font-size:12px;">Distribución del gasto valorizado por producto (en $)</p>
+                </div>
+            </div>
+        </div>
+        <div style="position:relative;height:{% if chart_labels|length > 5 %}380px{% else %}240px{% endif %};">
+            <canvas id="chartDetalle"></canvas>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% else %}
+{% if chart_labels_gen %}
+<div class="row g-4 mb-4">
+    <!-- Gráfico dona -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="rounded-3 d-flex align-items-center justify-content-center" style="width:40px;height:40px;background:rgba(16,185,129,.1);">
+                        <i class="fa-solid fa-chart-pie" style="color:#10b981;font-size:16px;"></i>
+                    </div>
+                    <div>
+                        <p class="fw-bold mb-0 text-dark" style="font-size:15px;">Distribución del Gasto por Módulo</p>
+                        <p class="text-muted mb-0" style="font-size:12px;">Porcentaje del gasto total valorizado</p>
+                    </div>
+                </div>
+                <div style="position:relative;height:300px;">
+                    <canvas id="chartDonut"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Gráfico barras horizontales -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="rounded-3 d-flex align-items-center justify-content-center" style="width:40px;height:40px;background:rgba(79,70,229,.1);">
+                        <i class="fa-solid fa-ranking-star" style="color:#4f46e5;font-size:16px;"></i>
+                    </div>
+                    <div>
+                        <p class="fw-bold mb-0 text-dark" style="font-size:15px;">Gasto Total por Módulo / Torre</p>
+                        <p class="text-muted mb-0" style="font-size:12px;">Costo valorizado acumulado en materiales</p>
+                    </div>
+                </div>
+                <div style="position:relative;height:300px;">
+                    <canvas id="chartBarrasGen"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-4">
+        <!-- Barra superior con títulos y botones de exportación -->
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <h5 class="fw-bold text-muted mb-0">
+                {% if es_detalle %}
+                Detalle valorizado de productos consumidos por este módulo
+                {% else %}
+                Resumen de consumos y costos valorizados por módulo/torre
+                {% endif %}
+            </h5>
+            <div class="d-flex gap-2">
+                <a href="{% url 'reporte_gasto_modulo_pdf' %}?modulo={{ modulo_id }}&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" class="btn btn-white text-danger shadow-sm rounded-circle d-flex align-items-center justify-content-center btn-pdf-circle" target="_blank" title="Exportar PDF">
+                    <i class="fa-solid fa-file-pdf fs-5"></i>
+                </a>
+                <a href="{% url 'exportar_gasto_modulo_excel' %}?modulo={{ modulo_id }}&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" class="btn btn-outline-success shadow-sm rounded-pill px-4 fw-bold">📊 Exportar Excel</a>
+            </div>
+        </div>
+
+        <!-- Formulario de Filtros -->
+        <form method="get" class="row g-3 mb-4 align-items-end">
+            <div class="col-md-4">
+                <label for="filter_modulo" class="form-label fw-semibold text-muted">Módulo / Torre</label>
+                <select name="modulo" id="filter_modulo" class="form-select bg-white">
+                    <option value="" {% if not modulo_id %}selected{% endif %}>-- Todos los Módulos --</option>
+                    <option value="sin_modulo" {% if modulo_id == 'sin_modulo' %}selected{% endif %}>Sin Módulo / Torre</option>
+                    {% for mod in modulos %}
+                    <option value="{{ mod.pk }}" {% if modulo_id == mod.pk|stringformat:"i" %}selected{% endif %}>{{ mod.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label for="fecha_inicio" class="form-label fw-semibold text-muted">Fecha Inicio</label>
+                <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control bg-white" value="{{ fecha_inicio }}">
+            </div>
+            <div class="col-md-3">
+                <label for="fecha_fin" class="form-label fw-semibold text-muted">Fecha Fin</label>
+                <input type="date" name="fecha_fin" id="fecha_fin" class="form-control bg-white" value="{{ fecha_fin }}">
+            </div>
+            
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-info text-white w-100 fw-bold rounded-pill py-2 shadow-sm">Filtrar</button>
+            </div>
+        </form>
+
+        <!-- Tabla de Datos -->
+        <div class="table-responsive">
+            <table class="table align-middle custom-table">
+                {% if es_detalle %}
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 50px;">#</th>
+                        <th>Producto</th>
+                        <th class="text-end">Precio Unitario (Último)</th>
+                        <th class="text-end">Cantidad Gastada</th>
+                        <th class="text-end">Subtotal Valorizado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in productos_gasto %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="fw-semibold text-dark">{{ item.producto.nombre }}</td>
+                        <td class="text-end">${{ item.precio_unitario|floatformat:0 }}</td>
+                        <td class="text-end">{{ item.cantidad_total }} un.</td>
+                        <td class="text-end fw-bold text-success">${{ item.total_valorizado|floatformat:0 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">No se encontraron registros de consumos para este módulo con los filtros seleccionados.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot style="--bs-table-bg:#1e3a8a;--bs-table-color:#fff;background:#1e3a8a;color:#fff;">
+                    <tr>
+                        <td colspan="3" class="fw-bold text-uppercase text-white" style="letter-spacing:.5px;font-size:12px;">Total Módulo</td>
+                        <td class="text-end fw-bold text-white">{{ total_cantidades }} un.</td>
+                        <td class="text-end fw-bold text-white fs-6">${{ total_modulo|floatformat:0 }}</td>
+                    </tr>
+                </tfoot>
+                {% else %}
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 50px;">#</th>
+                        <th>Módulo / Torre</th>
+                        <th class="text-end">Cantidad Material</th>
+                        <th class="text-end">Total Valorizado</th>
+                        <th class="text-center" style="width: 150px;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in gastos %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="fw-semibold text-dark">{{ item.nombre }}</td>
+                        <td class="text-end">{{ item.cantidad_total }} un.</td>
+                        <td class="text-end fw-bold text-success">${{ item.total_valorizado|floatformat:0 }}</td>
+                        <td class="text-center">
+                            <a href="{% url 'reporte_gasto_modulo_listado' %}?modulo={{ item.modulo_id }}&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" class="btn btn-sm btn-outline-info rounded-pill px-3 fw-semibold">
+                                Ver Detalle
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">No se encontraron movimientos de consumo en el período seleccionado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot style="--bs-table-bg:#1e3a8a;--bs-table-color:#fff;background:#1e3a8a;color:#fff;">
+                    <tr>
+                        <td colspan="2" class="fw-bold text-uppercase text-white" style="letter-spacing:.5px;font-size:12px;">Total General</td>
+                        <td class="text-end fw-bold text-white">{{ total_cantidades_general }} un.</td>
+                        <td class="text-end fw-bold text-white fs-6">${{ total_general|floatformat:0 }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        {% include 'inventory/includes/paginacion.html' %}
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     DATOS PARA GRÁFICOS (json_script — sin mezclar Django en JS)
+══════════════════════════════════════════════════════════════ -->
+{% if es_detalle and chart_labels %}
+{{ chart_labels|json_script:"_chartLabels" }}
+{{ chart_values|json_script:"_chartValues" }}
+{{ chart_quantities|json_script:"_chartQuantities" }}
+{{ chart_prices|json_script:"_chartPrices" }}
+{% elif not es_detalle and chart_labels_gen %}
+{{ chart_labels_gen|json_script:"_chartLabelsGen" }}
+{{ chart_values_gen|json_script:"_chartValuesGen" }}
+{{ chart_qtys_gen|json_script:"_chartQtysGen" }}
+{% endif %}
+
+<!-- ══════════════════════════════════════════════════════════
+     SCRIPTS CHART.JS  (JavaScript puro — sin template tags)
+══════════════════════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    /* Helper: lee un bloque json_script por id */
+    function getJSON(id) {
+        var el = document.getElementById(id);
+        return el ? JSON.parse(el.textContent) : null;
+    }
+
+    var labels      = getJSON('_chartLabels');
+    var labelsGen   = getJSON('_chartLabelsGen');
+
+    /* Si no hay ningún canvas de gráfico en esta página, salir */
+    if (!labels && !labelsGen) { return; }
+
+    Chart.defaults.font.family = "'Inter', 'Helvetica Neue', Arial, sans-serif";
+    Chart.defaults.font.size   = 12;
+    Chart.defaults.color       = '#64748b';
+
+    var PALETTE = [
+        '#4f46e5','#10b981','#f59e0b','#ef4444','#8b5cf6',
+        '#06b6d4','#ec4899','#6366f1','#14b8a6','#f97316',
+        '#84cc16','#a78bfa','#fb923c','#38bdf8','#34d399'
+    ];
+
+    function hexToRgba(hex, a) {
+        var r = parseInt(hex.slice(1,3), 16);
+        var g = parseInt(hex.slice(3,5), 16);
+        var b = parseInt(hex.slice(5,7), 16);
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+    }
+
+    var fmtCLP = new Intl.NumberFormat('es-CL', {
+        style: 'currency', currency: 'CLP', maximumFractionDigits: 0
+    });
+
+    /* ══════════════════════════════════════════════════════
+       VISTA DETALLE: Barras horizontales — Top productos
+    ══════════════════════════════════════════════════════ */
+    if (labels) {
+        var values    = getJSON('_chartValues');
+        var qtys      = getJSON('_chartQuantities');
+        var prices    = getJSON('_chartPrices');
+
+        var bgColors = labels.map(function(_, i) { return hexToRgba(PALETTE[i % PALETTE.length], 0.85); });
+        var bdColors = labels.map(function(_, i) { return PALETTE[i % PALETTE.length]; });
+
+        new Chart(document.getElementById('chartDetalle'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Gasto Valorizado ($)',
+                    data: values,
+                    backgroundColor: bgColors,
+                    borderColor: bdColors,
+                    borderWidth: 1.5,
+                    borderRadius: { topRight: 6, bottomRight: 6 },
+                    borderSkipped: 'left'
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        padding: 12,
+                        callbacks: {
+                            title: function(ctx) { return ctx[0].label; },
+                            afterTitle: function(ctx) {
+                                var i = ctx[0].dataIndex;
+                                return 'Precio unitario: ' + fmtCLP.format(prices[i]) + '  |  Cantidad: ' + qtys[i] + ' un.';
+                            },
+                            label: function(ctx) { return ' Subtotal: ' + fmtCLP.format(ctx.raw); }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: { color: '#f1f5f9' },
+                        ticks: {
+                            color: '#94a3b8',
+                            font: { size: 11 },
+                            callback: function(v) { return fmtCLP.format(v); }
+                        }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: '#334155', font: { size: 12 } }
+                    }
+                }
+            }
+        });
+    }
+
+    /* ══════════════════════════════════════════════════════
+       VISTA GENERAL: Dona + Barras horizontales por módulo
+    ══════════════════════════════════════════════════════ */
+    if (labelsGen) {
+        var valuesGen = getJSON('_chartValuesGen');
+        var qtysGen   = getJSON('_chartQtysGen');
+
+        /* — Gráfico Dona — */
+        new Chart(document.getElementById('chartDonut'), {
+            type: 'doughnut',
+            data: {
+                labels: labelsGen,
+                datasets: [{
+                    data: valuesGen,
+                    backgroundColor: PALETTE,
+                    borderColor: '#fff',
+                    borderWidth: 3,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 14,
+                            font: { size: 11 },
+                            usePointStyle: true,
+                            pointStyleWidth: 8
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        padding: 12,
+                        callbacks: {
+                            title: function(ctx) { return ctx[0].label; },
+                            label: function(ctx) {
+                                var total = ctx.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                                var pct   = ((ctx.raw / total) * 100).toFixed(1);
+                                var i     = ctx.dataIndex;
+                                return [
+                                    ' Gasto: ' + fmtCLP.format(ctx.raw) + ' (' + pct + '%)',
+                                    ' Material: ' + qtysGen[i] + ' un.'
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        /* — Gráfico Barras Horizontales — */
+        var bgGen = labelsGen.map(function(_, i) { return hexToRgba(PALETTE[i % PALETTE.length], 0.82); });
+        var bdGen = labelsGen.map(function(_, i) { return PALETTE[i % PALETTE.length]; });
+
+        new Chart(document.getElementById('chartBarrasGen'), {
+            type: 'bar',
+            data: {
+                labels: labelsGen,
+                datasets: [{
+                    label: 'Total Valorizado ($)',
+                    data: valuesGen,
+                    backgroundColor: bgGen,
+                    borderColor: bdGen,
+                    borderWidth: 1.5,
+                    borderRadius: { topRight: 6, bottomRight: 6 },
+                    borderSkipped: 'left'
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        padding: 12,
+                        callbacks: {
+                            title: function(ctx) { return ctx[0].label; },
+                            label: function(ctx) {
+                                var i = ctx.dataIndex;
+                                return [
+                                    ' Gasto: ' + fmtCLP.format(ctx.raw),
+                                    ' Material: ' + qtysGen[i] + ' un.'
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: { color: '#f1f5f9' },
+                        ticks: {
+                            color: '#94a3b8',
+                            font: { size: 11 },
+                            callback: function(v) { return fmtCLP.format(v); }
+                        }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: '#334155', font: { size: 12 } }
+                    }
+                }
+            }
+        });
+    }
+}());
+</script>
+{% endblock %}

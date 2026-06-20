@@ -1,0 +1,153 @@
+{% extends 'inventory/reportes/base_pdf.html' %}
+
+{% block title %}GDI #{{ t.idTransferencia }}{% endblock %}
+{% block report_section %}Guía de Despacho Interna{% endblock %}
+{% block report_title %}GDI N° {{ t.idTransferencia|stringformat:"04d" }} — Transferencia de Materiales{% endblock %}
+
+{% block report_filters %}
+<div class="rpt-filters">
+    {{ t.proyecto_origen.nombre }} &nbsp;&#8594;&nbsp; {{ t.proyecto_destino.nombre }}
+    &nbsp;&#183;&nbsp; Fecha despacho: {{ t.fecha_despacho|date:"d/m/Y" }}
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- Info de la GDI -->
+<table class="info-table">
+    <tr>
+        <td class="lbl">Obra de Origen</td>
+        <td class="bold">{{ t.proyecto_origen.nombre }}</td>
+        <td class="lbl">Obra de Destino</td>
+        <td class="bold">{{ t.proyecto_destino.nombre }}</td>
+    </tr>
+    <tr>
+        <td class="lbl">Despachado por</td>
+        <td>
+            {{ t.usuario_despacha.first_name }} {{ t.usuario_despacha.last_name }}
+            <span style="color:#94a3b8;font-size:10px;">({{ t.usuario_despacha.username }})</span>
+        </td>
+        <td class="lbl">Recepcionado por</td>
+        <td>
+            {% if t.usuario_recibe %}
+                {{ t.usuario_recibe.first_name }} {{ t.usuario_recibe.last_name }}
+                <span style="color:#94a3b8;font-size:10px;">({{ t.usuario_recibe.username }})</span>
+            {% else %}
+                <span style="color:#94a3b8;font-style:italic;">Pendiente de recepción</span>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <td class="lbl">Fecha Despacho</td>
+        <td>{{ t.fecha_despacho|date:"d/m/Y" }}</td>
+        <td class="lbl">Estado GDI</td>
+        <td>
+            {% if t.estado == 'EN TRANSITO' %}
+                <span class="badge badge-warning">En Tránsito</span>
+            {% elif t.estado == 'RECEPCION PARCIAL' %}
+                <span class="badge badge-info">Recepción Parcial</span>
+            {% else %}
+                <span class="badge badge-success">Recepción Completa</span>
+            {% endif %}
+        </td>
+    </tr>
+    {% if t.observacion %}
+    <tr>
+        <td class="lbl">Observaciones</td>
+        <td colspan="3" style="font-style:italic; color:#475569;">{{ t.observacion }}</td>
+    </tr>
+    {% endif %}
+</table>
+
+<!-- Detalle de materiales -->
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Cód. Producto</th>
+            <th>Descripción del Material</th>
+            <th class="text-right">Cant. Enviada</th>
+            <th class="text-right">Cant. Recibida</th>
+            <th class="text-center">Estado</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for d in t.detalles.all %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td class="mono muted">#{{ d.producto.cod_prod }}</td>
+            <td class="bold">{{ d.producto.nombre }}</td>
+            <td class="text-right bold">{{ d.cantidad_enviada }} un.</td>
+            <td class="text-right">
+                {% if d.cantidad_recibida > 0 %}{{ d.cantidad_recibida }} un.
+                {% else %}<span class="muted">—</span>{% endif %}
+            </td>
+            <td class="text-center">
+                {% if d.cantidad_recibida == 0 %}
+                    <span class="badge badge-warning">Pendiente</span>
+                {% elif d.cantidad_recibida < d.cantidad_enviada %}
+                    <span class="badge badge-info">Parcial</span>
+                {% else %}
+                    <span class="badge badge-success">Completo</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center muted" style="padding:20px;">Sin detalles registrados.</td></tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr class="total-row">
+            <td colspan="3" class="text-right">TOTALES</td>
+            <td class="text-right">
+                {% for d in t.detalles.all %}{{ d.cantidad_enviada }}{% endfor %} un.
+            </td>
+            <td class="text-right">
+                {% for d in t.detalles.all %}{{ d.cantidad_recibida }}{% endfor %} un.
+            </td>
+            <td></td>
+        </tr>
+    </tfoot>
+</table>
+
+<!-- Firmas -->
+<div class="signature-section">
+    <div class="sig-box">
+        <div class="sig-line">FIRMA DESPACHO (ORIGEN)</div>
+        <div class="sig-name">
+            {% if t.usuario_despacha.first_name or t.usuario_despacha.last_name %}
+                {{ t.usuario_despacha.first_name }} {{ t.usuario_despacha.last_name }}
+            {% else %}
+                {{ t.usuario_despacha.username }}
+            {% endif %}
+        </div>
+        <div class="sig-role">{{ t.proyecto_origen.nombre }}</div>
+        <div class="sig-role">Fecha: {{ t.fecha_despacho|date:"d/m/Y" }}</div>
+    </div>
+    <div class="sig-box" style="margin: 0 40px;">
+        <div class="sig-line" style="border-top-style:dashed; color:#94a3b8;">TRANSPORTISTA (OPCIONAL)</div>
+        <div class="sig-name" style="color:#94a3b8;">_____________________</div>
+        <div class="sig-role">Nombre y RUT</div>
+    </div>
+    <div class="sig-box">
+        <div class="sig-line">FIRMA RECEPCIÓN (DESTINO)</div>
+        <div class="sig-name">
+            {% if t.usuario_recibe %}
+                {% if t.usuario_recibe.first_name or t.usuario_recibe.last_name %}
+                    {{ t.usuario_recibe.first_name }} {{ t.usuario_recibe.last_name }}
+                {% else %}
+                    {{ t.usuario_recibe.username }}
+                {% endif %}
+            {% else %}
+                _____________________
+            {% endif %}
+        </div>
+        <div class="sig-role">{{ t.proyecto_destino.nombre }}</div>
+    </div>
+</div>
+
+<div style="margin-top:20px; padding:10px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; font-size:9px; color:#64748b; text-align:center;">
+    Este documento acredita el traslado interno de materiales entre obras de la empresa.
+    Su firma certifica conformidad con las cantidades indicadas.
+</div>
+{% endblock %}

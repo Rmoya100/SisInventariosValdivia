@@ -1,0 +1,95 @@
+{% extends 'inventory/base.html' %}
+
+{% block title %}Bodegas - Control de Inventarios{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'index' %}" class="btn rounded-circle" title="Volver al inicio">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="fw-bold mb-0" style="font-size:1.35rem;">Gestión de Bodegas</h2>
+            <p class="mb-0 text-muted" style="font-size:0.8rem;">Administra las ubicaciones de almacenamiento.</p>
+        </div>
+    </div>
+    <a href="{% url 'bodega_crear' %}" class="btn btn-primary rounded-pill px-4 fw-semibold">
+        <i class="fa-solid fa-plus me-2"></i>Nueva Bodega
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-body p-4">
+        <form method="GET" class="mb-4">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control rounded-start-pill bg-light border-0" placeholder="Buscar por nombre..." value="{{ request.GET.q }}">
+                <button class="btn btn-primary rounded-end-pill px-4" type="submit">Buscar</button>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light text-muted">
+                    <tr>
+                        <th class="ps-3 border-0 rounded-start">ID</th>
+                        <th class="border-0">Nombre</th>
+                        <th class="border-0">Proyecto</th>
+                        <th class="border-0">Ubicación</th>
+                        <th class="border-0">Descripción</th>
+                        <th class="text-end pe-3 border-0 rounded-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="border-top-0">
+                    {% for bodega in bodegas %}
+                    <tr>
+                        <td class="ps-3"><span class="badge bg-secondary">#{{ bodega.idBodega }}</span></td>
+                        <td class="fw-semibold text-dark">{{ bodega.nombre }}</td>
+                        <td>{{ bodega.proyecto.nombre|default:"Global/Sin Asignar" }}</td>
+                        <td>{{ bodega.ubicacion|default:"-" }}</td>
+                        <td>{{ bodega.descripcion|default:"-" }}</td>
+                        <td class="text-end pe-3">
+                            <div class="d-flex gap-1 justify-content-end align-items-center">
+                                <a href="{% url 'bodega_editar' bodega.pk %}"
+                                   class="action-btn action-btn--primary" title="Editar">
+                                    <i class="fa-solid fa-pen"></i>
+                                </a>
+                                <form action="{% url 'bodega_eliminar' bodega.pk %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="action-btn action-btn--danger" title="Eliminar"
+                                            onclick="return confirm('¿Está seguro de eliminar esta bodega?');">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <div style="color:var(--gray-300); font-size:2.5rem; margin-bottom:.75rem;">
+                                <i class="fa-solid fa-warehouse"></i>
+                            </div>
+                            <p class="fw-semibold text-muted mb-1">No se encontraron bodegas registradas</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if is_paginated %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center border-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link border-0 rounded-pill mx-1" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Anterior</a></li>
+                {% endif %}
+                <li class="page-item active"><span class="page-link border-0 rounded-pill mx-1 bg-primary">{{ page_obj.number }}</span></li>
+                {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link border-0 rounded-pill mx-1" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Siguiente</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

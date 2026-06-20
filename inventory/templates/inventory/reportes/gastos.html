@@ -1,0 +1,70 @@
+{% extends 'inventory/reportes/base_pdf.html' %}
+
+{% block title %}Control de Gastos{% endblock %}
+{% block report_section %}Reporte de Gastos{% endblock %}
+{% block report_title %}{{ titulo_reporte }}{% endblock %}
+
+{% block report_filters %}
+{% if filtros %}
+<div class="rpt-filters">{{ filtros|join:" · " }}</div>
+{% endif %}
+{% endblock %}
+
+{% block report_summary %}
+<div class="summary-grid">
+    <div class="summary-card">
+        <div class="sum-label">Total Registros</div>
+        <div class="sum-value">{{ gastos|length }}</div>
+    </div>
+    <div class="summary-card" style="border-left-color:#166534;background:#f0fdf4;">
+        <div class="sum-label" style="color:#166534;">Total Gastos</div>
+        <div class="sum-value" style="color:#14532d;font-size:18px;">
+            {% load inventory_extras %}{{ total|clp }}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% load inventory_extras %}
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Fecha</th>
+            <th>Tipo Doc.</th>
+            <th>N° Documento</th>
+            <th>Concepto</th>
+            <th>Observaciones</th>
+            <th class="text-right">Monto</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for gasto in gastos %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td>{{ gasto.fecha|date:"d/m/Y" }}</td>
+            <td>{{ gasto.get_tipo_documento_display|default:"-" }}</td>
+            <td>{{ gasto.num_documento|default:"-" }}</td>
+            <td><span class="badge badge-primary">{{ gasto.get_concepto_display }}</span></td>
+            <td class="muted">{{ gasto.observaciones|default:"-" }}</td>
+            <td class="text-right bold">{{ gasto.monto|clp }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="7" class="text-center muted" style="padding:24px;">
+                No hay gastos registrados con los filtros seleccionados.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    {% if gastos %}
+    <tfoot>
+        <tr class="total-row">
+            <td colspan="6" class="text-right">TOTAL</td>
+            <td class="text-right">{{ total|clp }}</td>
+        </tr>
+    </tfoot>
+    {% endif %}
+</table>
+{% endblock %}

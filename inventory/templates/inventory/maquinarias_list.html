@@ -1,0 +1,153 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <h2 class="fw-bold text-dark mb-0"><i class="fa-solid fa-tractor text-primary me-2"></i>Maquinarias</h2>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'mantenimiento_maquinarias' %}" class="btn btn-warning shadow-sm text-dark fw-bold d-flex align-items-center gap-2">
+                <i class="fa-solid fa-gear"></i> Mantenimientos
+            </a>
+            <a href="{% url 'transferencias_activos' %}" class="btn btn-secondary shadow-sm fw-bold d-flex align-items-center gap-2">
+                <i class="fa-solid fa-truck-fast"></i> GDI Activos
+            </a>
+        </div>
+    </div>
+
+    {% if maquinarias_alerta %}
+    <div class="alert alert-danger alert-dismissible fade show rounded-4 shadow-sm mb-4 border-0 d-flex align-items-center" role="alert">
+        <i class="fa-solid fa-triangle-exclamation fs-4 me-3"></i>
+        <div>
+            <strong class="d-block mb-1">Alertas de Mantenimiento Urgente:</strong>
+            {% for m in maquinarias_alerta %}
+                <span class="badge bg-danger rounded-pill shadow-sm me-1">{{ m.patente_o_codigo }} ({{ m.valor_actual }} {{ m.get_tipo_control_display }})</span>
+            {% endfor %}
+        </div>
+        <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    <div class="row g-4">
+
+        <!-- Lado Izquierdo: Formulario de Ingreso -->
+        <div class="col-xl-3 col-lg-4">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-header bg-white border-0 py-3">
+                    <h6 class="m-0 font-weight-bold text-success"><i class="fa-solid fa-circle-plus me-2"></i>Registrar Maquinaria</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Tipo de Máquina</label>
+                            {{ form.tipo_maquina }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Marca</label>
+                            {{ form.marca }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Modelo (Opcional)</label>
+                            {{ form.modelo }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Patente o Código</label>
+                            {{ form.patente_o_codigo }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Tipo de Control</label>
+                            {{ form.tipo_control }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Valor Actual (Hrs/Km)</label>
+                            {{ form.valor_actual }}
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label text-muted small fw-bold">Bodega (Opcional)</label>
+                            {{ form.bodega_actual }}
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 shadow-sm fw-bold rounded-pill">Guardar Maquinaria</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lado Derecho: Listado de Maquinarias -->
+        <div class="col-xl-9 col-lg-8">
+            <div class="card shadow-lg border-0 rounded-4 feature-card">
+                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fa-solid fa-list me-2"></i>Inventario de Maquinarias</h6>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'reporte_maquinarias_pdf' %}" target="_blank" class="btn btn-white text-danger shadow-sm rounded-circle d-flex align-items-center justify-content-center btn-pdf-circle" title="Exportar PDF">
+                            <i class="fa-solid fa-file-pdf fs-5"></i>
+                        </a>
+                        <a href="{% url 'exportar_maquinarias_excel' %}" class="btn btn-sm btn-white text-success shadow-sm border rounded-pill px-3">
+                            <i class="fa-solid fa-file-excel"></i> Excel
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 datatable w-100">
+                            <thead class="table-light text-muted">
+                                <tr>
+                                    <th class="ps-3">Patente / Código</th>
+                                    <th>Tipo</th>
+                                    <th>Marca / Modelo</th>
+                                    <th>Lectura</th>
+                                    <th>Alerta</th>
+                                    <th>Bodega</th>
+                                    <th class="text-end pe-3">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in maquinarias %}
+                                <tr>
+                                    <td class="ps-3 fw-bold text-dark">{{ item.patente_o_codigo }}</td>
+                                    <td>{{ item.get_tipo_maquina_display }}</td>
+                                    <td><span class="text-muted">{{ item.marca }}</span> {{ item.modelo|default:"" }}</td>
+                                    <td class="fw-semibold">{{ item.valor_actual }} <small class="text-muted">{% if item.tipo_control == 'HORAS' %}hrs{% else %}km{% endif %}</small></td>
+                                    <td>
+                                        {% if item.alerta_mantenimiento %}
+                                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger rounded-pill px-3"><i class="fa-solid fa-triangle-exclamation me-1"></i>Mantención</span>
+                                        {% else %}
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-3"><i class="fa-solid fa-check me-1"></i>Al Día</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.bodega_actual %}
+                                            <span class="badge bg-light text-dark border px-3 rounded-pill"><i class="fa-solid fa-warehouse me-1 text-primary"></i>{{ item.bodega_actual }}</span>
+                                        {% else %}
+                                            <span class="text-muted fst-italic">Sin Asignar</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <div class="d-flex gap-1 justify-content-end align-items-center">
+                                            <a href="{% url 'maquinaria_lectura' item.pk %}"
+                                               class="action-btn action-btn--info" title="Actualizar Lectura">
+                                                <i class="fa-solid fa-gauge"></i>
+                                            </a>
+                                            <a href="{% url 'maquinaria_editar' item.pk %}"
+                                               class="action-btn action-btn--primary" title="Editar">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </a>
+                                            <a href="{% url 'maquinaria_eliminar' item.pk %}"
+                                               class="action-btn action-btn--danger" title="Eliminar">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

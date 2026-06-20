@@ -1,0 +1,139 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <h2 class="fw-bold text-dark mb-0"><i class="fa-solid fa-wrench text-primary me-2"></i>Herramientas</h2>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'mantenimiento_herramientas' %}" class="btn btn-warning shadow-sm text-dark fw-bold d-flex align-items-center gap-2">
+                <i class="fa-solid fa-screwdriver-wrench"></i> Reparaciones
+            </a>
+            <a href="{% url 'transferencias_activos' %}" class="btn btn-secondary shadow-sm fw-bold d-flex align-items-center gap-2">
+                <i class="fa-solid fa-truck-fast"></i> GDI Activos
+            </a>
+        </div>
+    </div>
+    <div class="row g-4">
+
+        <!-- Lado Izquierdo: Formulario de Ingreso -->
+        <div class="col-xl-3 col-lg-4">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-header bg-white border-0 py-3">
+                    <h6 class="m-0 font-weight-bold text-success"><i class="fa-solid fa-circle-plus me-2"></i>Registrar Herramienta</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Nombre de la Herramienta</label>
+                            {{ form.nomHerramienta }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Código</label>
+                            {{ form.codigo }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Marca</label>
+                            {{ form.marca }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Estado</label>
+                            {{ form.estado }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Bodega (Opcional)</label>
+                            {{ form.bodega_actual }}
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label text-muted small fw-bold">Observaciones</label>
+                            {{ form.observaciones }}
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 shadow-sm fw-bold rounded-pill">Guardar Herramienta</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lado Derecho: Listado de Herramientas -->
+        <div class="col-xl-9 col-lg-8">
+            <div class="card shadow-lg border-0 rounded-4 feature-card">
+                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fa-solid fa-list me-2"></i>Inventario de Herramientas</h6>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'reporte_herramientas_pdf' %}" target="_blank" class="btn btn-white text-danger shadow-sm rounded-circle d-flex align-items-center justify-content-center btn-pdf-circle" title="Exportar PDF">
+                            <i class="fa-solid fa-file-pdf fs-5"></i>
+                        </a>
+                        <a href="{% url 'exportar_herramientas_excel' %}" class="btn btn-sm btn-white text-success shadow-sm border rounded-pill px-3">
+                            <i class="fa-solid fa-file-excel"></i> Excel
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 datatable w-100">
+                            <thead class="table-light text-muted">
+                                <tr>
+                                    <th class="ps-3">Código</th>
+                                    <th>Herramienta</th>
+                                    <th>Marca</th>
+                                    <th>Estado</th>
+                                    <th>Bodega</th>
+                                    <th>Reparación</th>
+                                    <th class="text-end pe-3">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in herramientas %}
+                                <tr>
+                                    <td class="ps-3 text-muted fw-semibold">{{ item.codigo }}</td>
+                                    <td class="fw-bold text-dark">{{ item.nomHerramienta }}</td>
+                                    <td>{{ item.marca }}</td>
+                                    <td>
+                                        {% if item.estado == 'BUENO' %}
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success rounded-pill px-3"><i class="fa-solid fa-circle-check me-1"></i>Bueno</span>
+                                        {% elif item.estado == 'REGULAR' %}
+                                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning rounded-pill px-3"><i class="fa-solid fa-circle-exclamation me-1"></i>Regular</span>
+                                        {% else %}
+                                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger rounded-pill px-3"><i class="fa-solid fa-circle-xmark me-1"></i>Malo</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.bodega_actual %}
+                                            <span class="badge bg-light text-dark border px-3 rounded-pill"><i class="fa-solid fa-warehouse me-1 text-primary"></i>{{ item.bodega_actual }}</span>
+                                        {% else %}
+                                            <span class="text-muted fst-italic">Sin Asignar</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.en_reparacion %}
+                                            <span class="badge bg-warning text-dark px-2 py-1"><i class="fa-solid fa-screwdriver-wrench me-1"></i>En Taller</span>
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <div class="d-flex gap-1 justify-content-end align-items-center">
+                                            <a href="{% url 'herramienta_editar' item.pk %}"
+                                               class="action-btn action-btn--primary" title="Editar">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </a>
+                                            <a href="{% url 'herramienta_eliminar' item.pk %}"
+                                               class="action-btn action-btn--danger" title="Eliminar">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends 'inventory/reportes/base_pdf.html' %}
+
+{% block title %}Trazabilidad por Producto{% endblock %}
+{% block report_section %}Auditoría{% endblock %}
+{% block report_title %}{{ titulo_reporte|default:"Reporte de Trazabilidad por Producto" }}{% endblock %}
+
+{% block report_summary %}
+<div class="summary-grid">
+    <div class="summary-card">
+        <div class="sum-label">Total Movimientos</div>
+        <div class="sum-value">{{ movimientos|length }}</div>
+    </div>
+    <div class="summary-card" style="border-left-color:#16a34a;background:#f0fdf4;">
+        <div class="sum-label" style="color:#166534;">Ingresos</div>
+        <div class="sum-value" style="color:#14532d;">
+            {% for m in movimientos %}{% if m.tipo == 'Ingreso' %}{{ forloop.counter }}{% endif %}{% endfor %}
+        </div>
+    </div>
+    <div class="summary-card" style="border-left-color:#dc2626;background:#fef2f2;">
+        <div class="sum-label" style="color:#991b1b;">Salidas</div>
+        <div class="sum-value" style="color:#7f1d1d;">
+            {% for m in movimientos %}{% if m.tipo == 'Salida' %}{{ forloop.counter }}{% endif %}{% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Fecha</th>
+            <th class="text-center">Tipo</th>
+            <th>Producto</th>
+            <th>Proyecto / Bodega</th>
+            <th class="text-right">Cantidad</th>
+            <th>Referencia</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for movimiento in movimientos %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td>{{ movimiento.fecha|date:'d/m/Y' }}</td>
+            <td class="text-center">
+                {% if movimiento.tipo == 'Ingreso' %}
+                    <span class="badge badge-success">+ Ingreso</span>
+                {% else %}
+                    <span class="badge badge-danger">- Salida</span>
+                {% endif %}
+            </td>
+            <td class="bold">{{ movimiento.producto }}</td>
+            <td>{{ movimiento.proyecto.nombre|default:'Sin Proyecto' }}</td>
+            <td class="text-right bold">{{ movimiento.cantidad }} un.</td>
+            <td class="muted">{{ movimiento.referencia }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center muted" style="padding:24px;">No hay movimientos registrados.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

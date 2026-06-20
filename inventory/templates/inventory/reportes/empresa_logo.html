@@ -1,0 +1,6 @@
+{% if empresa and empresa.logo %}
+<div style="float:left; margin-right:16px; margin-bottom:12px;">
+    <img src="{{ empresa.logo.url }}" alt="Logo de la empresa" style="max-height:100px; object-fit:contain;" />
+</div>
+<div style="clear:both;"></div>
+{% endif %}

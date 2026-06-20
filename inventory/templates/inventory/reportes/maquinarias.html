@@ -1,0 +1,108 @@
+{% extends 'inventory/reportes/base_pdf.html' %}
+
+{% block title %}Inventario de Maquinarias{% endblock %}
+{% block report_section %}Equipos{% endblock %}
+{% block report_title %}Inventario de Maquinarias y Equipos{% endblock %}
+
+{% block extra_styles %}
+<style>
+    @page { size: A4 landscape; margin: 15mm; }
+    .prog-wrap  { display: inline-block; background: #e2e8f0; border-radius: 99px; height: 7px; width: 80px; vertical-align: middle; }
+    .prog-bar   { height: 7px; border-radius: 99px; }
+    .prog-ok    { background: #22c55e; }
+    .prog-warn  { background: #f59e0b; }
+    .prog-crit  { background: #ef4444; }
+</style>
+{% endblock %}
+
+{% block report_summary %}
+<div class="summary-grid">
+    <div class="summary-card">
+        <div class="sum-label">Total Maquinarias</div>
+        <div class="sum-value">{{ maquinarias|length }}</div>
+    </div>
+    <div class="summary-card" style="border-left-color:#dc2626;background:#fef2f2;">
+        <div class="sum-label" style="color:#991b1b;">Alerta Mantención</div>
+        <div class="sum-value" style="color:#7f1d1d;">
+            {% for m in maquinarias %}{% if m.alerta_mantenimiento %}{{ forloop.counter }}{% endif %}{% endfor %}
+        </div>
+        <div class="sum-sub">requieren servicio</div>
+    </div>
+    <div class="summary-card" style="border-left-color:#3730a3;background:#eef2ff;">
+        <div class="sum-label" style="color:#1e1b4b;">Control Horómetro</div>
+        <div class="sum-value" style="color:#3730a3;">
+            {% for m in maquinarias %}{% if m.tipo_control == 'HORAS' %}{{ forloop.counter }}{% endif %}{% endfor %}
+        </div>
+    </div>
+    <div class="summary-card" style="border-left-color:#d97706;background:#fffbeb;">
+        <div class="sum-label" style="color:#92400e;">Control Kilometraje</div>
+        <div class="sum-value" style="color:#78350f;">
+            {% for m in maquinarias %}{% if m.tipo_control == 'KILOMETROS' %}{{ forloop.counter }}{% endif %}{% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Patente / Código</th>
+            <th>Tipo de Máquina</th>
+            <th>Marca / Modelo</th>
+            <th class="text-center">Control</th>
+            <th class="text-right">Valor Actual</th>
+            <th class="text-right">Último Mant.</th>
+            <th class="text-right">Próximo Mant.</th>
+            <th class="text-center">Estado</th>
+            <th>Bodega</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in maquinarias %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td class="mono bold">{{ item.patente_o_codigo }}</td>
+            <td>{{ item.get_tipo_maquina_display }}</td>
+            <td>{{ item.marca }}{% if item.modelo %} {{ item.modelo }}{% endif %}</td>
+            <td class="text-center">
+                {% if item.tipo_control == 'HORAS' %}
+                    <span class="badge badge-info">Horómetro</span>
+                {% else %}
+                    <span class="badge badge-warning">Kilometraje</span>
+                {% endif %}
+            </td>
+            <td class="text-right bold">
+                {{ item.valor_actual }}{% if item.tipo_control == 'HORAS' %} hrs{% else %} km{% endif %}
+            </td>
+            <td class="text-right muted">
+                {{ item.ultimo_mantenimiento }}{% if item.tipo_control == 'HORAS' %} hrs{% else %} km{% endif %}
+            </td>
+            <td class="text-right">
+                {% if item.tipo_control == 'HORAS' %}{{ item.ultimo_mantenimiento|add:"250" }} hrs
+                {% else %}{{ item.ultimo_mantenimiento|add:"10000" }} km{% endif %}
+            </td>
+            <td class="text-center">
+                {% if item.alerta_mantenimiento %}
+                    <span class="badge badge-danger">Urgente</span>
+                {% elif item.en_reparacion %}
+                    <span class="badge badge-purple">En Taller</span>
+                {% else %}
+                    <span class="badge badge-success">Al Dia</span>
+                {% endif %}
+            </td>
+            <td>{{ item.bodega_actual|default:"Sin Asignar" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="10" class="text-center muted" style="padding:24px;">No hay maquinaria registrada.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="margin-top:16px; padding:12px 16px; background:#eff6ff; border-radius:8px; border-left:4px solid #1d4ed8; font-size:10px; color:#1e3a8a;">
+    <strong>Regla de mantenimiento:</strong>
+    Horómetro: cada 250 hrs &nbsp;&#183;&nbsp; Kilometraje: cada 10.000 km.
+    La alerta se activa al superar el umbral definido.
+</div>
+{% endblock %}

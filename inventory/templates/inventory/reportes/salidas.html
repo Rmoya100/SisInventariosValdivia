@@ -1,0 +1,70 @@
+{% extends 'inventory/reportes/base_pdf.html' %}
+
+{% block title %}Salidas de Inventario{% endblock %}
+{% block report_section %}Movimientos{% endblock %}
+{% block report_title %}Reporte de Salidas de Inventario{% endblock %}
+
+{% block report_summary %}
+<div class="summary-grid">
+    <div class="summary-card" style="border-left-color:#dc2626;background:#fef2f2;">
+        <div class="sum-label" style="color:#991b1b;">Total Salidas</div>
+        <div class="sum-value" style="color:#7f1d1d;">{{ salidas|length }}</div>
+        <div class="sum-sub">despachos registrados</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>N° Salida</th>
+            <th>Fecha</th>
+            <th>Proyecto</th>
+            <th>Módulo / Torre</th>
+            <th>Solicitante</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for salida in salidas %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td class="bold mono">#{{ salida.numSalida }}</td>
+            <td>{{ salida.fecha|date:"d/m/Y" }}</td>
+            <td>{{ salida.proyecto.nombre|default:"—" }}</td>
+            <td>
+                {% if salida.modulo_torre %}
+                <span class="badge badge-primary">{{ salida.modulo_torre }}</span>
+                {% else %}<span class="muted">—</span>{% endif %}
+            </td>
+            <td>{{ salida.solicitante|default:"—" }}</td>
+        </tr>
+        {% if salida.detalles.all %}
+        <tr>
+            <td class="detail-cell" colspan="6">
+                <table class="detail-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th class="text-right">Cantidad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for det in salida.detalles.all %}
+                        <tr>
+                            <td>{{ det.producto.nombre }}</td>
+                            <td class="text-right bold">{{ det.cantidad }} un.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+        {% endif %}
+        {% empty %}
+        <tr><td colspan="6" class="text-center muted" style="padding:24px;">No hay salidas registradas.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

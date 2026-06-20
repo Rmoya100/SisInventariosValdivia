@@ -1,0 +1,65 @@
+{% extends 'inventory/base.html' %}
+{% block title %}GRI - Recepción de Materiales{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow-lg border-0 rounded-4">
+            <div class="card-header bg-success text-white p-4 rounded-top-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0 fw-bold">Recepción de Materiales (GRI)</h3>
+                        <p class="mb-0 opacity-75">Recibiendo en: {{ transferencia.proyecto_destino.nombre }}</p>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-white text-success fs-5">GDI #{{ transferencia.pk }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <div class="alert alert-info border-0 shadow-sm mb-4">
+                    <h5 class="fw-bold mb-1">Información del Despacho</h5>
+                    <p class="mb-0">Este material fue enviado desde <strong>{{ transferencia.proyecto_origen.nombre }}</strong> el día {{ transferencia.fecha_despacho|date:"d/m/Y" }}.</p>
+                    <p class="mb-0 mt-2">Esta pantalla registra la GRI y actualiza el stock en el proyecto destino.</p>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <h4 class="fw-bold text-success mb-3">Validación de Cantidades Recepcionadas</h4>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Producto</th>
+                                    <th class="text-center">Cantidad Enviada</th>
+                                    <th class="text-center" style="width: 200px;">Cantidad Recibida</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{ formset.management_form }}
+                                {% for form_det in formset %}
+                                <tr>
+                                    <td class="fw-bold">{{ form_det.instance.producto.nombre }}</td>
+                                    <td class="text-center"><span class="badge bg-light text-dark fs-6">{{ form_det.instance.cantidad_enviada }}</span></td>
+                                    <td class="text-center">
+                                        {{ form_det.cantidad_recibida }}
+                                        {% for hidden in form_det.hidden_fields %}
+                                            {{ hidden }}
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'transferencias' %}" class="btn btn-light rounded-pill px-4">Cancelar</a>
+                        <button type="submit" class="btn btn-success rounded-pill px-5 fw-bold">Confirmar Recepción y Actualizar Stock</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

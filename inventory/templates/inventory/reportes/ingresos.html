@@ -1,0 +1,85 @@
+{% extends 'inventory/reportes/base_pdf.html' %}
+{% load humanize %}
+
+{% block title %}Ingresos de Inventario{% endblock %}
+{% block report_section %}Movimientos{% endblock %}
+{% block report_title %}Reporte de Ingresos de Inventario{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .btn-print-row {
+        border: none;
+        border-radius: 6px;
+        padding: 5px 12px;
+        font-size: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        background: var(--c-primary);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .btn-print-row:hover { filter: brightness(.9); }
+    @media print {
+        .col-accion { display: none !important; }
+    }
+</style>
+{% endblock %}
+
+{% block report_summary %}
+<div class="summary-grid">
+    <div class="summary-card">
+        <div class="sum-label">Total Ingresos</div>
+        <div class="sum-value">{{ ingresos|length }}</div>
+        <div class="sum-sub">registros de recepción</div>
+    </div>
+    <div class="summary-card" style="border-left-color:#16a34a;background:#f0fdf4;">
+        <div class="sum-label" style="color:#166534;">Total Valorizado Recibido</div>
+        <div class="sum-value" style="color:#14532d; font-size:18px;">
+            ${{ total_valorizado|floatformat:0|intcomma }}
+        </div>
+        <div class="sum-sub" style="color:#166534;">suma de todos los subtotales</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>N° Ingreso</th>
+            <th>Fecha</th>
+            <th>Orden de Compra</th>
+            <th>Proyecto / Bodega</th>
+            <th>Tipo Doc.</th>
+            <th>N° Documento</th>
+            <th class="col-accion no-print" style="text-align:center;">Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for ingreso in ingresos %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td class="bold mono">#{{ ingreso.numIngreso }}</td>
+            <td>{{ ingreso.fecha|date:"d/m/Y" }}</td>
+            <td class="mono">OC #{{ ingreso.orden_compra.numCompra }}</td>
+            <td>{{ ingreso.proyecto.nombre|default:"—" }}</td>
+            <td><span class="badge badge-default">{{ ingreso.tipo_documento }}</span></td>
+            <td class="mono">{{ ingreso.num_documento }}</td>
+            <td class="col-accion no-print" style="text-align:center;">
+                <a href="{% url 'reporte_ingreso_detail_pdf' ingreso.pk %}" target="_blank" class="btn-print-row">
+                    &#128424; Imprimir
+                </a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center muted" style="padding:24px;">No hay ingresos registrados.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+

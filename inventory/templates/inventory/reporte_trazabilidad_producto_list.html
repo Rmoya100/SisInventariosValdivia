@@ -1,0 +1,206 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+{% block title %}Trazabilidad de Movimientos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h4 fw-bold mb-0">
+            <i class="fa-solid fa-magnifying-glass-chart me-2 text-primary"></i>Trazabilidad de Movimientos
+        </h2>
+        <span class="badge bg-secondary fs-6">{{ total }} movimientos</span>
+    </div>
+
+    <!-- Filtros -->
+    <form method="get" class="card card-body mb-4 p-3">
+        <div class="row g-2">
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Bodega</label>
+                <select name="bodega_id" class="form-select form-select-sm">
+                    <option value="">Todas las bodegas</option>
+                    {% for b in bodegas %}
+                        <option value="{{ b.pk }}" {% if filtro_bodega_id == b.pk|stringformat:"s" %}selected{% endif %}>{{ b.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Producto</label>
+                <select name="producto" class="form-select form-select-sm">
+                    <option value="">Todos los productos</option>
+                    {% for p in productos %}
+                        <option value="{{ p.pk }}" {% if producto_id == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold">Desde</label>
+                <input type="date" name="desde" value="{{ filtro_desde }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold">Hasta</label>
+                <input type="date" name="hasta" value="{{ filtro_hasta }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-2 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                    <i class="fa-solid fa-filter me-1"></i>Filtrar
+                </button>
+                <a href="{% url 'trazabilidad_list' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </a>
+            </div>
+        </div>
+    </form>
+
+    <!-- Tabla -->
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle small">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width:100px">Fecha</th>
+                        <th style="width:110px">Tipo</th>
+                        <th>Producto</th>
+                        <th style="width:150px">Bodega / Proyecto</th>
+                        <th style="width:90px" class="text-center">Cantidad</th>
+                        <th>Documento</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in page_obj %}
+                    <tr>
+                        <td class="text-nowrap text-muted">{{ m.fecha|date:"d/m/Y" }}</td>
+
+                        <td>
+                            {% if m.tipo == 'INGRESO' %}
+                                <span class="badge rounded-pill" style="background:#198754;font-size:0.78em;">
+                                    <i class="fa-solid fa-arrow-down me-1"></i>Ingreso
+                                </span>
+                            {% elif m.tipo == 'SALIDA' %}
+                                <span class="badge rounded-pill" style="background:#dc3545;font-size:0.78em;">
+                                    <i class="fa-solid fa-arrow-up me-1"></i>Salida
+                                </span>
+                            {% elif m.tipo == 'GDI_ENVIO' %}
+                                <span class="badge rounded-pill" style="background:#0d6efd;font-size:0.78em;">
+                                    <i class="fa-solid fa-truck me-1"></i>GDI Envío
+                                </span>
+                            {% elif m.tipo == 'GDI_RECEP' %}
+                                <span class="badge rounded-pill" style="background:#0dcaf0;color:#000;font-size:0.78em;">
+                                    <i class="fa-solid fa-truck-ramp-box me-1"></i>GDI Recep.
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <td class="fw-semibold">{{ m.producto }}</td>
+
+                        <td>
+                            <span class="d-flex align-items-center gap-1 text-muted small">
+                                <i class="fa-solid fa-warehouse fa-xs opacity-50"></i>
+                                {{ m.bodega }}
+                            </span>
+                        </td>
+
+                        <td class="text-center">
+                            {% if m.tipo == 'INGRESO' or m.tipo == 'GDI_RECEP' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1 fw-bold" style="font-size:0.9em;">
+                                    +{{ m.cantidad }}
+                                </span>
+                            {% elif m.tipo == 'SALIDA' or m.tipo == 'GDI_ENVIO' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-3 py-1 fw-bold" style="font-size:0.9em;">
+                                    −{{ m.cantidad }}
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <div class="d-flex flex-column gap-1">
+                                {% if m.tipo == 'INGRESO' %}
+                                    <span class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:0.8em;">
+                                            <i class="fa-solid fa-file-invoice me-1"></i>{{ m.ref_principal }}
+                                        </span>
+                                        <span class="text-muted" style="font-size:0.78em;">Doc #{{ m.doc_num }}</span>
+                                    </span>
+                                    {% if m.ref_extra %}
+                                    <span class="text-muted" style="font-size:0.75em;">
+                                        <i class="fa-solid fa-receipt fa-xs me-1 opacity-50"></i>{{ m.ref_extra }}
+                                    </span>
+                                    {% endif %}
+                                {% elif m.tipo == 'SALIDA' %}
+                                    <span class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:0.8em;">
+                                            <i class="fa-solid fa-cube me-1"></i>{{ m.ref_principal }}
+                                        </span>
+                                        <span class="text-muted" style="font-size:0.78em;">Salida #{{ m.doc_num }}</span>
+                                    </span>
+                                    {% if m.ref_extra %}
+                                    <span class="text-muted" style="font-size:0.75em;">
+                                        <i class="fa-solid fa-layer-group fa-xs me-1 opacity-50"></i>{{ m.ref_extra }}
+                                    </span>
+                                    {% endif %}
+                                {% elif m.tipo == 'GDI_ENVIO' %}
+                                    <span class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size:0.8em;">
+                                            <i class="fa-solid fa-arrow-right me-1"></i>{{ m.ref_principal }}
+                                        </span>
+                                        <span class="text-muted" style="font-size:0.78em;">GDI #{{ m.doc_num }}</span>
+                                    </span>
+                                    <span class="text-muted" style="font-size:0.75em;">
+                                        <i class="fa-solid fa-circle-info fa-xs me-1 opacity-50"></i>{{ m.ref_extra }}
+                                    </span>
+                                {% elif m.tipo == 'GDI_RECEP' %}
+                                    <span class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size:0.8em;">
+                                            <i class="fa-solid fa-arrow-left me-1"></i>{{ m.ref_principal }}
+                                        </span>
+                                        <span class="text-muted" style="font-size:0.78em;">GDI #{{ m.doc_num }}</span>
+                                    </span>
+                                    <span class="text-muted" style="font-size:0.75em;">
+                                        <i class="fa-solid fa-circle-info fa-xs me-1 opacity-50"></i>{{ m.ref_extra }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">
+                            <i class="fa-solid fa-inbox fa-2x d-block mb-2 opacity-25"></i>
+                            Sin movimientos para los filtros seleccionados
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer d-flex justify-content-between align-items-center py-2">
+            <small class="text-muted">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                ({{ total }} registros)
+            </small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&bodega_id={{ filtro_bodega_id }}&producto={{ producto_id }}&desde={{ filtro_desde }}&hasta={{ filtro_hasta }}">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&bodega_id={{ filtro_bodega_id }}&producto={{ producto_id }}&desde={{ filtro_desde }}&hasta={{ filtro_hasta }}">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

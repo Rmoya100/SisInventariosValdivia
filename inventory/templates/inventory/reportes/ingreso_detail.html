@@ -1,0 +1,99 @@
+{% extends 'inventory/reportes/base_pdf.html' %}
+{% load humanize %}
+
+{% block title %}Ingreso #{{ ingreso.numIngreso }}{% endblock %}
+{% block report_section %}Recepción de Mercadería{% endblock %}
+{% block report_title %}Ingreso N° {{ ingreso.numIngreso|stringformat:"04d" }}{% endblock %}
+
+{% block report_filters %}
+<div class="rpt-filters">
+    {{ ingreso.proyecto.nombre|default:"Sin proyecto" }}
+    &nbsp;&#183;&nbsp; Fecha: {{ ingreso.fecha|date:"d/m/Y" }}
+    &nbsp;&#183;&nbsp; OC #{{ ingreso.orden_compra.numCompra }}
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- Información del ingreso -->
+<table class="info-table">
+    <tr>
+        <td class="lbl">N° Ingreso</td>
+        <td class="bold">#{{ ingreso.numIngreso }}</td>
+        <td class="lbl">Fecha</td>
+        <td class="bold">{{ ingreso.fecha|date:"d/m/Y" }}</td>
+    </tr>
+    <tr>
+        <td class="lbl">Orden de Compra</td>
+        <td class="mono">OC #{{ ingreso.orden_compra.numCompra }}</td>
+        <td class="lbl">Proyecto / Bodega</td>
+        <td class="bold">{{ ingreso.proyecto.nombre|default:"—" }}</td>
+    </tr>
+    <tr>
+        <td class="lbl">Tipo Documento</td>
+        <td>
+            <span class="badge badge-primary">{{ ingreso.tipo_documento }}</span>
+        </td>
+        <td class="lbl">N° Documento</td>
+        <td class="mono bold">{{ ingreso.num_documento }}</td>
+    </tr>
+    {% if ingreso.observaciones %}
+    <tr>
+        <td class="lbl">Observaciones</td>
+        <td colspan="3" style="font-style:italic; color:#475569;">{{ ingreso.observaciones }}</td>
+    </tr>
+    {% endif %}
+</table>
+
+<!-- Detalle de productos -->
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Producto</th>
+            <th class="text-right">Cantidad</th>
+            <th class="text-right">Precio Unit.</th>
+            <th class="text-right">Subtotal</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for det in ingreso.detalles.all %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td class="bold">{{ det.producto.nombre }}</td>
+            <td class="text-right">{{ det.cantidad }} un.</td>
+            <td class="text-right">${{ det.precio|floatformat:0|intcomma }}</td>
+            <td class="text-right bold">${{ det.subtotal|floatformat:0|intcomma }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center muted" style="padding:20px;">Sin productos registrados.</td></tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr class="total-row">
+            <td colspan="4" class="text-right">TOTAL INGRESO</td>
+            <td class="text-right">${{ total_ingreso|floatformat:0|intcomma }}</td>
+        </tr>
+    </tfoot>
+</table>
+
+<!-- Firmas -->
+<div class="signature-section">
+    <div class="sig-box">
+        <div class="sig-line">FIRMA RECEPCIÓN</div>
+        <div class="sig-name">_____________________</div>
+        <div class="sig-role">Nombre y RUT</div>
+    </div>
+    <div class="sig-box">
+        <div class="sig-line">REVISADO POR</div>
+        <div class="sig-name">_____________________</div>
+        <div class="sig-role">Nombre y RUT</div>
+    </div>
+    <div class="sig-box">
+        <div class="sig-line">BODEGA / PROYECTO</div>
+        <div class="sig-name">{{ ingreso.proyecto.nombre|default:"—" }}</div>
+        <div class="sig-role">Fecha: {{ ingreso.fecha|date:"d/m/Y" }}</div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends 'inventory/reportes/base_pdf.html' %}
+
+{% block title %}Gasto de Material Valorizado por Módulo/Torre{% endblock %}
+{% block report_section %}Reporte de Gastos{% endblock %}
+{% block report_title %}{{ titulo_reporte|default:"Gasto de Material Valorizado por Módulo/Torre" }}{% endblock %}
+
+{% block report_summary %}
+<div class="summary-grid">
+    {% if es_detalle %}
+    <div class="summary-card">
+        <div class="sum-label">Módulo/Torre</div>
+        <div class="sum-value">{{ modulo_nombre }}</div>
+    </div>
+    <div class="summary-card">
+        <div class="sum-label">Cant. Material (un.)</div>
+        <div class="sum-value">{{ total_cantidades }}</div>
+    </div>
+    <div class="summary-card" style="border-left-color:#166534;background:#f0fdf4;">
+        <div class="sum-label" style="color:#166534;">Total Gastado</div>
+        <div class="sum-value" style="color:#14532d;">${{ total_modulo|floatformat:0 }}</div>
+    </div>
+    {% else %}
+    <div class="summary-card">
+        <div class="sum-label">Módulos Evaluados</div>
+        <div class="sum-value">{{ gastos|length }}</div>
+    </div>
+    <div class="summary-card">
+        <div class="sum-label">Cant. Total Material (un.)</div>
+        <div class="sum-value">{{ total_cantidades_general }}</div>
+    </div>
+    <div class="summary-card" style="border-left-color:#166534;background:#f0fdf4;">
+        <div class="sum-label" style="color:#166534;">Total General</div>
+        <div class="sum-value" style="color:#14532d;">${{ total_general|floatformat:0 }}</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+{% if es_detalle %}
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Producto</th>
+            <th class="text-right">Precio Unit. (Último)</th>
+            <th class="text-right">Cantidad Gastada</th>
+            <th class="text-right">Total Valorizado</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in productos_gasto %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td class="bold">{{ p.producto.nombre }}</td>
+            <td class="text-right">${{ p.precio_unitario|floatformat:0 }}</td>
+            <td class="text-right">{{ p.cantidad_total }} un.</td>
+            <td class="text-right bold">${{ p.total_valorizado|floatformat:0 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center muted" style="padding:24px;">No hay gastos registrados para este módulo en el período seleccionado.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Módulo/Torre</th>
+            <th class="text-right">Cantidad Material</th>
+            <th class="text-right">Total Valorizado</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for g in gastos %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td class="bold">{{ g.nombre }}</td>
+            <td class="text-right">{{ g.cantidad_total }} un.</td>
+            <td class="text-right bold">${{ g.total_valorizado|floatformat:0 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center muted" style="padding:24px;">No hay gastos registrados en el período seleccionado.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{% endblock %}

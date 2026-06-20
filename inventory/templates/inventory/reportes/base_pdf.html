@@ -1,0 +1,382 @@
+{% load static %}<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Reporte{% endblock %} — {{ empresa.nombre|default:"Control de Inventarios" }}</title>
+    <style>
+        /* ── Reset & Variables ─────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --c-primary:       #1d4ed8;
+            --c-primary-dark:  #1e3a8a;
+            --c-primary-light: #dbeafe;
+            --c-primary-xlight:#eff6ff;
+            --c-text:          #0f172a;
+            --c-text-2:        #475569;
+            --c-muted:         #94a3b8;
+            --c-border:        #e2e8f0;
+            --c-row-alt:       #f8fafc;
+            --c-success-bg:    #dcfce7;
+            --c-success-text:  #166534;
+            --c-warning-bg:    #fef9c3;
+            --c-warning-text:  #854d0e;
+            --c-danger-bg:     #fee2e2;
+            --c-danger-text:   #991b1b;
+            --c-purple-bg:     #ede9fe;
+            --c-purple-text:   #5b21b6;
+            --c-info-bg:       #e0e7ff;
+            --c-info-text:     #3730a3;
+        }
+
+        /* ── Base ──────────────────────────────────────────── */
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11px;
+            color: var(--c-text);
+            line-height: 1.55;
+            background: #ffffff;
+            padding: 24px 28px;
+        }
+
+        /* ── Toolbar (no-print) ────────────────────────────── */
+        .report-toolbar {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .btn-rpt {
+            border: none;
+            border-radius: 8px;
+            padding: 8px 18px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: filter .15s;
+        }
+        .btn-rpt:hover { filter: brightness(.92); }
+        .btn-rpt-print    { background: var(--c-primary); color: #fff; }
+        .btn-rpt-download { background: #475569; color: #fff; }
+
+        /* ── Letterhead ────────────────────────────────────── */
+        .letterhead {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border: 2px solid var(--c-primary);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-bottom: 18px;
+            background: linear-gradient(135deg, var(--c-primary-xlight) 0%, #fff 60%);
+        }
+        .lh-left  { display: flex; align-items: flex-start; gap: 14px; }
+        .lh-right { text-align: right; font-size: 10px; color: var(--c-text-2); line-height: 1.7; }
+
+        .lh-logo  { max-height: 64px; max-width: 160px; object-fit: contain; }
+        .lh-no-logo {
+            width: 64px; height: 64px;
+            border-radius: 8px;
+            background: var(--c-primary);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 26px;
+        }
+        .lh-company-name  { font-size: 15px; font-weight: 700; color: var(--c-primary-dark); margin-bottom: 3px; }
+        .lh-company-extra { font-size: 10px; color: var(--c-text-2); line-height: 1.6; }
+
+        /* ── Title bar ─────────────────────────────────────── */
+        .report-title-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, var(--c-primary-dark) 0%, var(--c-primary) 100%);
+            color: #fff;
+            border-radius: 10px;
+            padding: 14px 20px;
+            margin-bottom: 20px;
+        }
+        .rpt-section-label {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            opacity: .7;
+            margin-bottom: 4px;
+        }
+        .report-title-bar h1 {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: .3px;
+            margin: 0;
+        }
+        .rpt-filters { font-size: 10px; opacity: .8; margin-top: 5px; }
+        .rpt-date-badge {
+            text-align: right;
+            background: rgba(255,255,255,.12);
+            border-radius: 8px;
+            padding: 8px 14px;
+            min-width: 90px;
+        }
+        .rpt-date-badge .d-label { font-size: 9px; opacity: .75; }
+        .rpt-date-badge .d-value { font-size: 15px; font-weight: 700; line-height: 1.2; }
+        .rpt-date-badge .d-time  { font-size: 10px; opacity: .75; }
+
+        /* ── Summary stats ─────────────────────────────────── */
+        .summary-grid {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .summary-card {
+            flex: 1;
+            border-radius: 8px;
+            padding: 12px 16px;
+            border-left: 4px solid var(--c-primary);
+            background: var(--c-primary-xlight);
+        }
+        .sum-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--c-primary); }
+        .sum-value { font-size: 22px; font-weight: 800; color: var(--c-primary-dark); margin-top: 3px; line-height: 1; }
+        .sum-sub   { font-size: 9px; color: var(--c-text-2); margin-top: 3px; }
+
+        /* ── Main table ────────────────────────────────────── */
+        table.rpt-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-top: 0;
+        }
+        table.rpt-table thead tr {
+            background: var(--c-primary-dark);
+            color: #fff;
+        }
+        table.rpt-table thead th {
+            padding: 10px 12px;
+            font-size: 9.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .6px;
+            border: none;
+            white-space: nowrap;
+        }
+        table.rpt-table thead th:first-child { border-radius: 7px 0 0 0; }
+        table.rpt-table thead th:last-child  { border-radius: 0 7px 0 0; }
+        table.rpt-table thead th.text-right  { text-align: right; }
+        table.rpt-table thead th.text-center { text-align: center; }
+
+        table.rpt-table tbody td {
+            padding: 9px 12px;
+            border-bottom: 1px solid var(--c-border);
+            vertical-align: middle;
+            color: var(--c-text);
+        }
+        table.rpt-table tbody td.text-right  { text-align: right; }
+        table.rpt-table tbody td.text-center { text-align: center; }
+        table.rpt-table tbody td.muted       { color: var(--c-muted); font-style: italic; }
+        table.rpt-table tbody td.mono        { font-family: 'Courier New', monospace; }
+        table.rpt-table tbody td.bold        { font-weight: 700; }
+        table.rpt-table tbody td.counter     { color: var(--c-muted); font-size: 10px; width: 32px; }
+
+        table.rpt-table tbody tr:nth-child(even) td { background: var(--c-row-alt); }
+        table.rpt-table tbody tr:nth-child(odd)  td { background: #fff; }
+
+        table.rpt-table tbody tr.total-row td {
+            background: var(--c-primary-xlight) !important;
+            border-top: 2px solid var(--c-primary);
+            font-weight: 700;
+            color: var(--c-primary-dark);
+        }
+
+        table.rpt-table tbody td.detail-cell {
+            padding: 0 !important;
+            border-bottom: 2px solid var(--c-primary-light) !important;
+            background: #f1f5f9 !important;
+        }
+
+        /* ── Nested details table ──────────────────────────── */
+        table.detail-table {
+            width: calc(100% - 32px);
+            margin: 6px 0 8px 32px;
+            border-collapse: collapse;
+            font-size: 10px;
+            border: 1px solid var(--c-border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        table.detail-table thead th {
+            background: #334155;
+            color: #fff;
+            padding: 7px 10px;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+        }
+        table.detail-table tbody td {
+            padding: 7px 10px;
+            border-bottom: 1px solid var(--c-border);
+            background: #fff;
+        }
+        table.detail-table tbody tr:nth-child(even) td { background: var(--c-row-alt); }
+        table.detail-table tfoot td {
+            background: #f1f5f9;
+            font-weight: 700;
+            padding: 7px 10px;
+            border-top: 1px solid var(--c-border);
+        }
+
+        /* ── Badges ────────────────────────────────────────── */
+        .badge {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 20px;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            white-space: nowrap;
+        }
+        .badge-success { background: var(--c-success-bg); color: var(--c-success-text); }
+        .badge-warning { background: var(--c-warning-bg); color: var(--c-warning-text); }
+        .badge-danger  { background: var(--c-danger-bg);  color: var(--c-danger-text);  }
+        .badge-info    { background: var(--c-info-bg);    color: var(--c-info-text);    }
+        .badge-purple  { background: var(--c-purple-bg);  color: var(--c-purple-text);  }
+        .badge-default { background: #f1f5f9; color: var(--c-text-2); }
+        .badge-primary { background: var(--c-primary-light); color: var(--c-primary-dark); }
+
+        /* ── Info table (for GDI / structured docs) ────────── */
+        table.info-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        table.info-table td {
+            padding: 9px 12px;
+            border: 1px solid var(--c-border);
+            font-size: 11px;
+            vertical-align: middle;
+        }
+        table.info-table td.lbl {
+            font-weight: 700;
+            background: var(--c-primary-xlight);
+            color: var(--c-primary-dark);
+            width: 22%;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+        }
+
+        /* ── Signatures ────────────────────────────────────── */
+        .signature-section {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 64px;
+            gap: 40px;
+        }
+        .sig-box {
+            flex: 1;
+            text-align: center;
+            font-size: 10px;
+            color: var(--c-text-2);
+        }
+        .sig-box .sig-line {
+            border-top: 1.5px solid var(--c-text);
+            padding-top: 8px;
+            margin-bottom: 4px;
+        }
+        .sig-box .sig-name { font-weight: 700; color: var(--c-text); }
+        .sig-box .sig-role { color: var(--c-muted); font-size: 9px; }
+
+        /* ── Footer ────────────────────────────────────────── */
+        .report-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 28px;
+            padding-top: 10px;
+            border-top: 1px solid var(--c-border);
+            font-size: 9px;
+            color: var(--c-muted);
+        }
+        .report-footer .company { font-weight: 600; color: var(--c-text-2); }
+
+        /* ── Utilities ─────────────────────────────────────── */
+        .text-right  { text-align: right; }
+        .text-center { text-align: center; }
+        .fw-bold     { font-weight: 700; }
+        .text-muted  { color: var(--c-muted); }
+        .text-primary{ color: var(--c-primary); }
+        .mt-4 { margin-top: 16px; }
+
+        /* ── Print overrides ───────────────────────────────── */
+        @media print {
+            body { padding: 0; }
+            .no-print { display: none !important; }
+            table.rpt-table thead tr,
+            table.detail-table thead tr,
+            .report-title-bar,
+            .letterhead,
+            .summary-card {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+    {% block extra_styles %}{% endblock %}
+</head>
+<body>
+
+<!-- ── Toolbar ──────────────────────────────────────── -->
+<div class="report-toolbar no-print">
+    <button class="btn-rpt btn-rpt-print" onclick="window.print()">&#128424; Imprimir</button>
+    <button class="btn-rpt btn-rpt-download" onclick="window.print()">&#8595; Guardar PDF</button>
+</div>
+
+<!-- ── Letterhead ───────────────────────────────────── -->
+<div class="letterhead">
+    <div class="lh-left">
+        {% if empresa and empresa.logo %}
+        <img src="{{ empresa.logo.url }}" alt="Logo" class="lh-logo">
+        {% else %}
+        <div class="lh-no-logo">&#9670;</div>
+        {% endif %}
+        <div>
+            <div class="lh-company-name">{{ empresa.nombre|default:"Mi Empresa" }}</div>
+            <div class="lh-company-extra">
+                {% if empresa.giro %}{{ empresa.giro }}<br>{% endif %}
+                {% if empresa.rut %}RUT {{ empresa.rut }}{% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="lh-right">
+        {% if empresa.direccion %}{{ empresa.direccion }}<br>{% endif %}
+        {% if empresa.telefono %}Tel. {{ empresa.telefono }}<br>{% endif %}
+    </div>
+</div>
+
+<!-- ── Title bar ─────────────────────────────────────── -->
+<div class="report-title-bar">
+    <div>
+        <div class="rpt-section-label">{% block report_section %}Reporte{% endblock %}</div>
+        <h1>{% block report_title %}Reporte{% endblock %}</h1>
+        {% block report_filters %}{% endblock %}
+    </div>
+    <div class="rpt-date-badge">
+        <div class="d-label">Generado el</div>
+        <div class="d-value">{% now "d/m/Y" %}</div>
+        <div class="d-time">{% now "H:i" %} hrs</div>
+    </div>
+</div>
+
+<!-- ── Summary (optional) ───────────────────────────── -->
+{% block report_summary %}{% endblock %}
+
+<!-- ── Main content ─────────────────────────────────── -->
+{% block content %}{% endblock %}
+
+<!-- ── Footer ───────────────────────────────────────── -->
+<div class="report-footer">
+    <span class="company">{{ empresa.nombre|default:"Sistema de Control de Inventarios" }}</span>
+    <span>Documento generado automáticamente &#183; {% now "d/m/Y H:i" %} hrs</span>
+</div>
+
+</body>
+</html>

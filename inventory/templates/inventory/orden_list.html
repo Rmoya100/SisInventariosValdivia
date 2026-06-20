@@ -1,0 +1,553 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+{% block title %}{% if modo_edicion %}Editar Orden de Compra{% else %}Órdenes de Compra{% endif %}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'index' %}" class="btn btn-white text-muted shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Volver al inicio"><i class="fa-solid fa-arrow-left"></i></a>
+        <h2 class="fw-bold text-dark mb-0"><i class="fa-solid fa-file-invoice-dollar text-warning me-2"></i>{% if modo_edicion %}Editar Orden de Compra{% else %}Órdenes de Compra{% endif %}</h2>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'reporte_compras_pdf' %}" class="btn btn-white text-danger shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" target="_blank" title="Exportar PDF">
+            <i class="fa-solid fa-file-pdf fs-5"></i>
+        </a>
+        <a href="{% url 'exportar_compras_excel' %}" class="btn btn-white text-success shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Exportar Excel">
+            <i class="fa-solid fa-file-excel fs-5"></i>
+        </a>
+        <a href="{% url 'reporte_oc_pendientes_pdf' %}" class="btn btn-outline-danger shadow-sm rounded-pill px-4 fw-bold d-flex align-items-center gap-2" target="_blank">
+            <i class="fa-solid fa-file-export"></i> Reporte Pendientes
+        </a>
+    </div>
+</div>
+
+{% if modo_edicion or user_perms.ord_crear or is_admin %}
+<div class="card shadow-lg border-0 rounded-4 mb-4">
+    <div class="card-body p-4">
+        <form method="post" id="orden-form">
+            {% csrf_token %}
+            <h5 class="fw-bold mb-3 text-primary"><i class="fa-solid fa-circle-plus me-2"></i>{% if modo_edicion %}Editar Orden de Compra{% else %}Registrar Nueva Orden de Compra{% endif %}</h5>
+            {% if detalles.non_form_errors %}
+            <div class="alert alert-danger">
+                {% for error in detalles.non_form_errors %}
+                <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="row g-3 mb-4">
+                {% for field in form %}
+                <div class="col-md-4">
+                    <label for="{{ field.id_for_label }}" class="form-label fw-semibold text-muted">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                    <div class="text-danger small mt-1">{{ field.errors }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Datalist for forma_de_pago options -->
+            <datalist id="formas-pago-list">
+                <option value="Efectivo/Transferencia">
+                <option value="Cheque adjunto 30 días">
+                <option value="Cheque adjunto 60 días">
+                <option value="Crédito 30 días">
+                <option value="Crédito 60 días">
+            </datalist>
+
+            <h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-list-check me-2 text-primary"></i>Detalles de la Orden</h5>
+            
+            <!-- Custom Add Product Bar (Premium Look) -->
+            <div class="custom-add-container shadow-sm">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-4 d-flex align-items-center gap-2">
+                        <span class="fs-4 text-primary"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <div class="w-100">
+                            <button type="button" id="open-product-search-btn" class="btn btn-outline-secondary btn-sm w-100 text-start" style="border-radius: 0.75rem; padding: 0.55rem 0.75rem;">
+                                Seleccionar producto...
+                            </button>
+                            <select id="custom-buscar-producto" class="d-none"></select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" id="custom-cantidad" class="form-control form-control-sm" placeholder="*Cantidad" style="border-radius: 0.75rem; padding: 0.4rem 0.75rem;">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" id="custom-precio" class="form-control form-control-sm" placeholder="Costo unitario" step="0.01" style="border-radius: 0.75rem; padding: 0.4rem 0.75rem;">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" id="custom-add-btn" class="btn btn-outline-primary btn-sm w-100 fw-bold" style="border-radius: 0.75rem; padding: 0.55rem 0.75rem;">
+                            + Agregar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="productoSearchModal" tabindex="-1" aria-labelledby="productoSearchModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="productoSearchModalLabel">Buscar Producto</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <input type="text" id="producto-search-input" class="form-control form-control-sm" placeholder="Filtrar por nombre..." autocomplete="off">
+                            </div>
+                            <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th class="text-end">Stock</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="producto-search-results"></tbody>
+                                </table>
+                            </div>
+                            <div class="small text-muted mt-2">Doble clic en el producto para seleccionarlo.</div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{ productos_data|json_script:"productos-data" }}
+
+            <!-- Visible Custom Table -->
+            <div class="table-responsive mb-4">
+                <table class="table table-sm align-middle custom-table" id="custom-detalles-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 45%;">Producto</th>
+                            <th style="width: 15%;" class="text-center">Unidades</th>
+                            <th style="width: 15%;" class="text-end">Costo</th>
+                            <th style="width: 15%;" class="text-end">Subtotal</th>
+                            <th style="width: 10%;" class="text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="custom-detalles-body">
+                        <tr id="custom-empty-placeholder">
+                            <td colspan="5" class="text-center text-muted py-4">Busca, selecciona y agrega los datos del producto en la orden.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Hidden Original Django Formset -->
+            <div class="django-formset-container d-none">
+                {{ detalles.management_form }}
+                <table class="table" id="detalles-table">
+                    <tbody id="detalles-body">
+                        {% for detalle_form in detalles %}
+                        <tr class="detalle-form-row">
+                            <td>
+                                {{ detalle_form.idDetalle }}
+                                {{ detalle_form.producto }}
+                            </td>
+                            <td>
+                                {{ detalle_form.cantidad }}
+                            </td>
+                            <td>
+                                {{ detalle_form.precio }}
+                            </td>
+                            <td>
+                                {{ detalle_form.DELETE }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+
+                        {# Empty template row for JS cloning (uses formset empty_form with __prefix__) #}
+                        <tr class="detalle-form-row template-row d-none">
+                            <td>
+                                {{ detalles.empty_form.idDetalle }}
+                                {{ detalles.empty_form.producto }}
+                            </td>
+                            <td>
+                                {{ detalles.empty_form.cantidad }}
+                            </td>
+                            <td>
+                                {{ detalles.empty_form.precio }}
+                            </td>
+                            <td>
+                                {{ detalles.empty_form.DELETE }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button type="button" id="add-detalle">Add</button>
+            </div>
+            
+            <div class="d-flex justify-content-end align-items-center mt-3">
+                <button type="submit" class="btn btn-primary text-white shadow-sm rounded-pill px-5 py-2.5 fw-bold">{% if modo_edicion %}Actualizar Orden{% else %}Guardar Orden{% endif %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const addDetalleBtn = document.getElementById("add-detalle");
+        const detallesBody = document.getElementById("detalles-body");
+        const totalForms = document.getElementById("id_detalles-TOTAL_FORMS");
+
+        // Custom UI elements
+        const customBuscarSelect = document.getElementById("custom-buscar-producto");
+        const customCantidadInput = document.getElementById("custom-cantidad");
+        const customPrecioInput = document.getElementById("custom-precio");
+        const customAddBtn = document.getElementById("custom-add-btn");
+        const customDetallesBody = document.getElementById("custom-detalles-body");
+        const customEmptyPlaceholder = document.getElementById("custom-empty-placeholder");
+        const openProductSearchBtn = document.getElementById("open-product-search-btn");
+        const productoSearchInput = document.getElementById("producto-search-input");
+        const productoSearchResults = document.getElementById("producto-search-results");
+        const productoSearchModal = new bootstrap.Modal(document.getElementById("productoSearchModal"));
+        let editingRow = null;
+
+        const productOptions = JSON.parse(document.getElementById('productos-data').textContent);
+
+        function getDetalleRows() {
+            return Array.from(document.querySelectorAll(".detalle-form-row:not(.template-row)"));
+        }
+
+        function fillHiddenProductSelect() {
+            customBuscarSelect.innerHTML = '<option value="">Buscar producto...</option>';
+            productOptions.forEach(prod => {
+                const option = document.createElement('option');
+                option.value = prod.cod_prod;
+                option.text = prod.nombre;
+                option.dataset.stock = prod.stock_actual;
+                customBuscarSelect.appendChild(option);
+            });
+        }
+
+        fillHiddenProductSelect();
+
+        // Helper to format currency
+        const formatter = new Intl.NumberFormat('es-CL', {
+            style: 'currency',
+            currency: 'CLP',
+            minimumFractionDigits: 0
+        });
+
+        function resetProductSelection() {
+            customBuscarSelect.value = "";
+            openProductSearchBtn.textContent = "Seleccionar producto...";
+            openProductSearchBtn.classList.remove("btn-outline-primary");
+            openProductSearchBtn.classList.add("btn-outline-secondary");
+            customAddBtn.textContent = "+ Agregar";
+            customAddBtn.classList.remove("btn-warning", "text-dark");
+            customAddBtn.classList.add("btn-outline-primary");
+            editingRow = null;
+        }
+
+        function updateProductButtonLabel() {
+            const selectedOption = customBuscarSelect.selectedOptions[0];
+            if (selectedOption && selectedOption.value) {
+                openProductSearchBtn.textContent = selectedOption.text;
+                openProductSearchBtn.classList.remove("btn-outline-secondary");
+                openProductSearchBtn.classList.add("btn-outline-primary");
+                return;
+            }
+            resetProductSelection();
+        }
+
+        function populateProductSearchTable(filter = "") {
+            const query = filter.trim().toLowerCase();
+            productoSearchResults.innerHTML = "";
+            let matches = 0;
+
+            productOptions.forEach(prod => {
+                if (!query || prod.nombre.toLowerCase().includes(query)) {
+                    const tr = document.createElement("tr");
+                    tr.className = "product-search-row";
+                    tr.dataset.productId = prod.cod_prod;
+                    tr.dataset.productName = prod.nombre;
+                    tr.dataset.productStock = prod.stock_actual;
+                    tr.innerHTML = `<td>${prod.nombre}</td><td class="text-end">${prod.stock_actual}</td>`;
+                    productoSearchResults.appendChild(tr);
+                    matches += 1;
+                }
+            });
+
+            if (!matches) {
+                productoSearchResults.innerHTML = '<tr><td class="text-center text-muted">No hay productos que coincidan.</td></tr>';
+            }
+        }
+
+        function selectProductFromSearch(productId, productName, productStock) {
+            customBuscarSelect.value = productId;
+            openProductSearchBtn.textContent = `${productName} (Stock: ${productStock})`;
+            openProductSearchBtn.classList.remove("btn-outline-secondary");
+            openProductSearchBtn.classList.add("btn-outline-primary");
+
+            if (parseInt(customCantidadInput.value) > 0 && parseFloat(customPrecioInput.value) >= 0) {
+                handleAddProduct();
+            } else {
+                customCantidadInput.focus();
+            }
+        }
+
+        function handleAddProduct() {
+            const prodId = customBuscarSelect.value;
+            const cant = parseInt(customCantidadInput.value) || 0;
+            const precio = parseFloat(customPrecioInput.value) || 0;
+
+            if (!prodId) {
+                alert("Por favor, seleccione un producto.");
+                return;
+            }
+            if (cant <= 0) {
+                alert("Por favor, ingrese una cantidad mayor a 0.");
+                return;
+            }
+            if (precio < 0) {
+                alert("Por favor, ingrese un precio válido.");
+                return;
+            }
+
+            let existingRow = editingRow;
+            const rows = getDetalleRows();
+            if (existingRow && !rows.includes(existingRow)) {
+                existingRow = null;
+            }
+
+            // Si no se está editando una fila específica, actualiza una fila activa
+            // del mismo producto para evitar duplicados en la orden.
+            if (!existingRow) {
+            rows.forEach((row) => {
+                const prodSelect = row.querySelector('select[name$="-producto"]');
+                const deleteCheck = row.querySelector('input[name$="-DELETE"]');
+                if (prodSelect && prodSelect.value === prodId && (!deleteCheck || !deleteCheck.checked)) {
+                    existingRow = row;
+                }
+            });
+            }
+
+            if (existingRow) {
+                const cantInput = existingRow.querySelector('input[name$="-cantidad"]');
+                const precioInput = existingRow.querySelector('input[name$="-precio"]');
+                const prodSelect = existingRow.querySelector('select[name$="-producto"]');
+                if (prodSelect) prodSelect.value = prodId;
+                cantInput.value = cant;
+                precioInput.value = precio;
+            } else {
+                let targetRow = null;
+                rows.forEach((row) => {
+                    const prodSelect = row.querySelector('select[name$="-producto"]');
+                    const deleteCheck = row.querySelector('input[name$="-DELETE"]');
+                    if (prodSelect && !prodSelect.value && (!deleteCheck || !deleteCheck.checked)) {
+                        targetRow = row;
+                    }
+                });
+
+                if (!targetRow) {
+                    const formCount = parseInt(totalForms.value);
+                    targetRow = createNewRow(formCount);
+                    detallesBody.appendChild(targetRow);
+                    totalForms.value = formCount + 1;
+                }
+
+                const prodSelect = targetRow.querySelector('select[name$="-producto"]');
+                const cantInput = targetRow.querySelector('input[name$="-cantidad"]');
+                const precioInput = targetRow.querySelector('input[name$="-precio"]');
+
+                prodSelect.value = prodId;
+                cantInput.value = cant;
+                precioInput.value = precio;
+            }
+
+            resetProductSelection();
+            customCantidadInput.value = "";
+            customPrecioInput.value = "";
+            syncHiddenToCustom();
+        }
+
+        // Add Product Button click handler
+        customAddBtn.addEventListener("click", handleAddProduct);
+
+        openProductSearchBtn.addEventListener("click", function() {
+            productoSearchInput.value = "";
+            populateProductSearchTable();
+            productoSearchModal.show();
+        });
+
+        productoSearchInput.addEventListener("input", function(e) {
+            populateProductSearchTable(e.target.value);
+        });
+
+        productoSearchResults.addEventListener("dblclick", function(e) {
+            const row = e.target.closest("tr.product-search-row");
+            if (!row) return;
+            selectProductFromSearch(row.dataset.productId, row.dataset.productName, row.dataset.productStock);
+            productoSearchModal.hide();
+        });
+
+        // Function to update the custom table view from the hidden formset
+        function syncHiddenToCustom() {
+            const placeholder = customEmptyPlaceholder.cloneNode(true);
+            customDetallesBody.innerHTML = "";
+            let hasItems = false;
+            
+            const rows = getDetalleRows();
+            rows.forEach((row, index) => {
+                const prodSelect = row.querySelector('select[name$="-producto"]');
+                const cantInput = row.querySelector('input[name$="-cantidad"]');
+                const precioInput = row.querySelector('input[name$="-precio"]');
+                const deleteCheck = row.querySelector('input[name$="-DELETE"]');
+
+                if (prodSelect && cantInput && precioInput) {
+                    const prodId = prodSelect.value;
+                    const cant = parseFloat(cantInput.value) || 0;
+                    const precio = parseFloat(precioInput.value) || 0;
+                    
+                    if (deleteCheck && deleteCheck.checked) return;
+                    if (!prodId) return;
+
+                    hasItems = true;
+                    const prodText = prodSelect.options[prodSelect.selectedIndex]?.text || '';
+                    const subtotal = cant * precio;
+
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td><strong>${prodText}</strong></td>
+                        <td class="text-center">${cant}</td>
+                        <td class="text-end">${formatter.format(precio)}</td>
+                        <td class="text-end fw-bold text-primary">${formatter.format(subtotal)}</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-action-edit btn-sm me-1" data-index="${index}">Editar</button>
+                            <button type="button" class="btn btn-action-delete btn-sm" data-index="${index}">Eliminar</button>
+                        </td>
+                    `;
+                    customDetallesBody.appendChild(tr);
+                }
+            });
+
+            if (!hasItems) {
+                customDetallesBody.appendChild(placeholder);
+            }
+        }
+
+        const templateElem = document.querySelector('.detalle-form-row.template-row') || document.querySelector('.detalle-form-row');
+        const templateRow = templateElem ? templateElem.cloneNode(true) : null;
+
+        function createNewRow(formCount) {
+            let newRow;
+            if (templateRow) {
+                newRow = templateRow.cloneNode(true);
+                newRow.classList.remove('template-row', 'd-none');
+                newRow.innerHTML = newRow.innerHTML.replace(/__prefix__/g, formCount);
+                newRow.innerHTML = newRow.innerHTML.replace(/-0-/g, `-${formCount}-`);
+                newRow.innerHTML = newRow.innerHTML.replace(/_0_/g, `_${formCount}_`);
+            } else {
+                newRow = document.createElement('tr');
+                newRow.className = 'detalle-form-row';
+                newRow.innerHTML = `
+                    <td>
+                        <select name="detalles-${formCount}-producto"></select>
+                    </td>
+                    <td>
+                        <input type="number" name="detalles-${formCount}-cantidad" value="" />
+                    </td>
+                    <td>
+                        <input type="number" step="0.01" name="detalles-${formCount}-precio" value="" />
+                    </td>
+                    <td>
+                        <input type="checkbox" name="detalles-${formCount}-DELETE" />
+                    </td>
+                `;
+            }
+
+            const inputs = newRow.querySelectorAll("input, select");
+            inputs.forEach(input => {
+                if (input.type !== "hidden" && input.type !== "checkbox") {
+                    input.value = "";
+                }
+                if (input.type === "checkbox") {
+                    input.checked = false;
+                }
+            });
+            return newRow;
+        }
+
+        customDetallesBody.addEventListener("click", function(e) {
+            const button = e.target.closest('button');
+            if (!button) {
+                return;
+            }
+            const index = button.dataset.index;
+            const row = getDetalleRows()[index];
+            if (!row) {
+                return;
+            }
+
+            if (button.classList.contains("btn-action-edit")) {
+                const prodSelect = row.querySelector('select[name$="-producto"]');
+                const cantInput = row.querySelector('input[name$="-cantidad"]');
+                const precioInput = row.querySelector('input[name$="-precio"]');
+
+                if (prodSelect && cantInput && precioInput) {
+                    customBuscarSelect.value = prodSelect.value;
+                    customCantidadInput.value = cantInput.value;
+                    customPrecioInput.value = precioInput.value;
+                    updateProductButtonLabel();
+                    editingRow = row;
+                    customAddBtn.textContent = "Actualizar";
+                    customAddBtn.classList.remove("btn-outline-primary");
+                    customAddBtn.classList.add("btn-warning", "text-dark");
+                    customCantidadInput.focus();
+                }
+                syncHiddenToCustom();
+            }
+
+            if (button.classList.contains("btn-action-delete")) {
+                const deleteCheck = row.querySelector('input[name$="-DELETE"]');
+                
+                if (deleteCheck) {
+                    deleteCheck.checked = true;
+                } else {
+                    const prodSelect = row.querySelector('select[name$="-producto"]');
+                    const cantInput = row.querySelector('input[name$="-cantidad"]');
+                    const precioInput = row.querySelector('input[name$="-precio"]');
+                    if (prodSelect) prodSelect.value = "";
+                    if (cantInput) cantInput.value = "";
+                    if (precioInput) precioInput.value = "";
+                }
+                if (editingRow === row) {
+                    resetProductSelection();
+                    customCantidadInput.value = "";
+                    customPrecioInput.value = "";
+                }
+                syncHiddenToCustom();
+            }
+        });
+
+        function hasPendingCustomInput() {
+            return Boolean(
+                customBuscarSelect.value &&
+                customCantidadInput.value &&
+                customPrecioInput.value
+            );
+        }
+
+        // Ensure hidden formset is synced just before submitting the form
+        const ordenForm = document.getElementById('orden-form');
+        if (ordenForm) {
+            ordenForm.addEventListener('submit', function(e) {
+                // Si el usuario dejó una edición o un producto nuevo cargado en la
+                // barra superior y presiona "Actualizar Orden" sin pulsar el botón
+                // "+ Agregar/Actualizar", aplicamos ese cambio al formset oculto.
+                if (hasPendingCustomInput()) {
+                    handleAddProduct();
+                }
+                syncHiddenToCustom();
+            });
+        }
+
+        syncHiddenToCustom();
+    });
+</script>
+{% endif %}
+{% endblock %}

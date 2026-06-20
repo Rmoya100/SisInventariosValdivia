@@ -1,0 +1,268 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+
+{% block title %}{% if object %}Editar GDI #{{ object.idTransferencia }}{% else %}Nueva GDI{% endif %}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{% url 'transferencias' %}" class="btn btn-white text-muted shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width:45px;height:45px;"><i class="fa-solid fa-arrow-left"></i></a>
+    <div>
+        <h2 class="fw-bold text-dark mb-0">
+            <i class="fa-solid fa-truck-fast text-primary me-2"></i>
+            {% if object %}Editar GDI #{{ object.idTransferencia }}{% else %}Nueva Guía de Despacho Interna (GDI){% endif %}
+        </h2>
+        <p class="mb-0 text-muted small">Flujo: genera la GDI aquí → el proyecto destino recepciona (GRI) desde la lista de transferencias.</p>
+    </div>
+</div>
+
+<div class="card shadow-lg border-0 rounded-4">
+    <div class="card-body p-4">
+        <form method="post" id="gdi-form">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger rounded-3 mb-3">
+                {% for e in form.non_field_errors %}<div>{{ e }}</div>{% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- ── Cabecera: origen → destino ── -->
+            <div class="row g-3 mb-4 align-items-start">
+
+                <!-- ORIGEN -->
+                <div class="col-md-5">
+                    <label class="form-label fw-semibold text-muted">
+                        <i class="fa-solid fa-building me-1 text-primary"></i>Obra de Origen
+                    </label>
+
+                    {% if form.bodega_origen %}
+                        {# Admin/staff: elige bodega → proyecto se deriva automáticamente #}
+                        {{ form.bodega_origen }}
+                        {% if form.bodega_origen.errors %}
+                        <div class="text-danger small mt-1">{{ form.bodega_origen.errors }}</div>
+                        {% endif %}
+                        <div id="proyecto-origen-info" class="mt-2 {% if not proyecto_origen_nombre %}d-none{% endif %}">
+                            <span class="badge rounded-pill px-3 py-2" style="background:rgba(79,70,229,.1);color:#4f46e5;font-size:11px;">
+                                <i class="fa-solid fa-building me-1"></i>
+                                <span id="proyecto-origen-nombre">{{ proyecto_origen_nombre|default:"" }}</span>
+                            </span>
+                        </div>
+                    {% elif form.proyecto_origen %}
+                        {# Usuario con múltiples proyectos: elige su proyecto de origen #}
+                        {{ form.proyecto_origen }}
+                        {% if form.proyecto_origen.errors %}
+                        <div class="text-danger small mt-1">{{ form.proyecto_origen.errors }}</div>
+                        {% endif %}
+                    {% else %}
+                        {# Usuario con un solo proyecto: se auto-asigna #}
+                        <div class="form-control bg-light text-muted">
+                            <i class="fa-solid fa-building me-1"></i>
+                            {{ request.user.proyecto.nombre|default:proyecto_origen_nombre|default:"(proyecto asignado)" }}
+                        </div>
+                        <div class="form-text">Se asignará automáticamente tu proyecto.</div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-1 text-center d-flex align-items-end justify-content-center" style="padding-bottom:0.55rem;">
+                    <i class="fa-solid fa-arrow-right text-primary fs-4"></i>
+                </div>
+
+                <!-- DESTINO -->
+                <div class="col-md-5">
+                    <label class="form-label fw-semibold text-muted">
+                        <i class="fa-solid fa-location-dot me-1 text-danger"></i>Obra de Destino
+                    </label>
+                    {{ form.proyecto_destino }}
+                    {% if form.proyecto_destino.errors %}
+                    <div class="text-danger small mt-1">{{ form.proyecto_destino.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label fw-semibold text-muted">Observaciones (opcional)</label>
+                    {{ form.observacion }}
+                </div>
+            </div>
+
+            <!-- ── Detalle de materiales ── -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold text-primary mb-0">
+                    <i class="fa-solid fa-boxes-stacked me-2"></i>Materiales a Despachar
+                    <span class="badge bg-light text-muted fw-normal fs-6 ms-1" id="stock-label-badge">
+                        {% if proyecto_origen_nombre %}Stock: {{ proyecto_origen_nombre }}{% else %}Stock: (selecciona proyecto){% endif %}
+                    </span>
+                </h5>
+                <button type="button" id="btn-add-row" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+                    <i class="fa-solid fa-plus me-1"></i>Agregar producto
+                </button>
+            </div>
+
+            {# Management form FUERA del <table> — crítico para envío correcto del formset #}
+            {{ detalles.management_form }}
+
+            <div class="table-responsive mb-3">
+                <table class="table table-sm align-middle" id="gdi-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:50%">Producto</th>
+                            <th style="width:25%">Cant. a Enviar</th>
+                            <th style="width:12%" class="text-center">Disponible</th>
+                            <th style="width:13%" class="text-center">Eliminar</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gdi-formset-body">
+                        {% for form_det in detalles %}
+                        <tr class="gdi-row">
+                            <td>{{ form_det.producto }}</td>
+                            <td>{{ form_det.cantidad_enviada }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-dark border stock-badge">—</span>
+                            </td>
+                            <td class="text-center">
+                                <label class="text-danger mb-0" title="Eliminar fila">
+                                    {{ form_det.DELETE }}
+                                </label>
+                            </td>
+                            {% for hidden in form_det.hidden_fields %}{{ hidden }}{% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {# Template oculto para clonar filas nuevas con JS #}
+            <script type="text/html" id="empty-row-tpl">
+                <tr class="gdi-row">
+                    <td>{{ detalles.empty_form.producto }}</td>
+                    <td>{{ detalles.empty_form.cantidad_enviada }}</td>
+                    <td class="text-center"><span class="badge bg-light text-dark border stock-badge">—</span></td>
+                    <td class="text-center"><label class="text-danger mb-0">{{ detalles.empty_form.DELETE }}</label></td>
+                    {% for hidden in detalles.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+                </tr>
+            </script>
+
+            {{ productos_data|json_script:"gdi-productos-data" }}
+            {% if bodegas_info_json %}{{ bodegas_info_json|json_script:"gdi-bodegas-info" }}{% endif %}
+            {% if stocks_por_proyecto_json %}{{ stocks_por_proyecto_json|json_script:"gdi-stocks-proyecto" }}{% endif %}
+
+            <div class="d-flex justify-content-end gap-3 mt-2">
+                <a href="{% url 'transferencias' %}" class="btn btn-light rounded-pill px-4">Cancelar</a>
+                <button type="submit" class="btn btn-primary rounded-pill px-5 fw-bold">
+                    <i class="fa-solid fa-paper-plane me-2"></i>
+                    {% if object %}Actualizar GDI{% else %}Generar GDI y Despachar{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const body        = document.getElementById('gdi-formset-body');
+    const addBtn      = document.getElementById('btn-add-row');
+    const totalForms  = document.getElementById('id_detalles-TOTAL_FORMS');
+    const tplEl       = document.getElementById('empty-row-tpl');
+    const productosEl = document.getElementById('gdi-productos-data');
+    if (!body || !addBtn || !totalForms || !tplEl || !productosEl) return;
+
+    const productos = JSON.parse(productosEl.textContent);
+
+    // Mapa de stock actual (se actualiza cuando admin/usuario cambia el proyecto origen)
+    let currentStockMap = {};
+    productos.forEach(p => {
+        currentStockMap[p.cod_prod] = p.stock_origen !== undefined ? p.stock_origen : p.stock_actual;
+    });
+
+    // ── Si admin/staff: escuchar cambio de bodega origen y actualizar stock/proyecto ──
+    const bodegaOrigenSel = document.getElementById('id_bodega_origen_gdi');
+    const stocksProyEl    = document.getElementById('gdi-stocks-proyecto');
+    const bodegasInfoEl   = document.getElementById('gdi-bodegas-info');
+    const proyInfoDiv     = document.getElementById('proyecto-origen-info');
+    const proyNombreSpan  = document.getElementById('proyecto-origen-nombre');
+    const stockLabelBadge = document.getElementById('stock-label-badge');
+
+    if (bodegaOrigenSel && stocksProyEl && bodegasInfoEl) {
+        const stocksPorProy = JSON.parse(stocksProyEl.textContent);
+        const bodegasInfo   = JSON.parse(bodegasInfoEl.textContent);
+
+        function onBodegaChange() {
+            const bodegaId   = parseInt(bodegaOrigenSel.value, 10);
+            const bodegaData = bodegasInfo.find(b => b.id === bodegaId);
+
+            if (!bodegaData) {
+                if (proyInfoDiv)     proyInfoDiv.classList.add('d-none');
+                if (stockLabelBadge) stockLabelBadge.textContent = 'Stock: (selecciona bodega)';
+                productos.forEach(p => { currentStockMap[p.cod_prod] = p.stock_actual; });
+            } else {
+                if (proyNombreSpan)  proyNombreSpan.textContent = bodegaData.proyecto_nombre;
+                if (proyInfoDiv)     proyInfoDiv.classList.remove('d-none');
+                if (stockLabelBadge) stockLabelBadge.textContent = 'Stock: ' + bodegaData.proyecto_nombre;
+                // Claves en JSON siempre son strings; usar String() para coincidir
+                const pStock = stocksPorProy[String(bodegaData.proyecto_id)] || {};
+                productos.forEach(p => {
+                    const st = pStock[String(p.cod_prod)];
+                    currentStockMap[p.cod_prod] = st !== undefined ? st : 0;
+                });
+            }
+            body.querySelectorAll('.gdi-row').forEach(updateRowBadge);
+        }
+
+        bodegaOrigenSel.addEventListener('change', onBodegaChange);
+        onBodegaChange();
+    }
+
+    // ── Badge de stock por fila ──
+    function updateRowBadge(row) {
+        const prodSel = row.querySelector('select[name$="-producto"]');
+        const badge   = row.querySelector('.stock-badge');
+        if (!prodSel || !badge) return;
+
+        function refresh() {
+            const id = parseInt(prodSel.value, 10);
+            const st = isNaN(id) ? null : currentStockMap[id];
+            if (st === null || st === undefined) {
+                badge.textContent = '—';
+                badge.className   = 'badge bg-light text-dark border stock-badge';
+            } else if (st === 0) {
+                badge.textContent = '0 un.';
+                badge.className   = 'badge bg-danger text-white stock-badge';
+            } else if (st <= 5) {
+                badge.textContent = st + ' un.';
+                badge.className   = 'badge bg-warning text-dark stock-badge';
+            } else {
+                badge.textContent = st + ' un.';
+                badge.className   = 'badge bg-success text-white stock-badge';
+            }
+        }
+
+        prodSel.removeEventListener('change', refresh);
+        prodSel.addEventListener('change', refresh);
+        refresh();
+    }
+
+    body.querySelectorAll('.gdi-row').forEach(updateRowBadge);
+
+    // ── Agregar fila nueva ──
+    addBtn.addEventListener('click', function () {
+        const n   = parseInt(totalForms.value, 10);
+        const tpl = tplEl.innerHTML.replace(/__prefix__/g, n);
+        const tmp = document.createElement('tbody');
+        tmp.innerHTML = tpl;
+        const newRow = tmp.querySelector('tr');
+        if (newRow) {
+            body.appendChild(newRow);
+            updateRowBadge(newRow);
+            totalForms.value = n + 1;
+        }
+    });
+
+    // ── Visual de eliminación ──
+    body.addEventListener('change', function (e) {
+        if (e.target.type === 'checkbox' && e.target.name.endsWith('-DELETE')) {
+            const row = e.target.closest('tr');
+            if (row) row.style.opacity = e.target.checked ? '0.35' : '1';
+        }
+    });
+});
+</script>
+{% endblock %}

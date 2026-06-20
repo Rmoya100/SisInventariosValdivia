@@ -1,0 +1,85 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+{% block title %}Productos{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'index' %}" class="btn btn-white text-muted shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Volver al inicio"><i class="fa-solid fa-arrow-left"></i></a>
+        <h2 class="fw-bold text-dark mb-0">Catálogo de Productos</h2>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'reporte_productos_pdf' %}" class="btn btn-white text-danger shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" target="_blank" title="Exportar PDF">
+            <i class="fa-solid fa-file-pdf fs-5"></i>
+        </a>
+        <a href="{% url 'exportar_productos_excel' %}" class="btn btn-white text-success shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Exportar Excel">
+            <i class="fa-solid fa-file-excel fs-5"></i>
+        </a>
+        {% if user_perms.prod_crear or is_admin %}
+        <a href="{% url 'producto_create' %}" class="btn btn-primary shadow-sm rounded-pill px-4 d-flex align-items-center gap-2">
+            <i class="fa-solid fa-plus"></i> Nuevo Producto
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow-lg border-0 rounded-4 feature-card">
+    <div class="card-body p-4">
+        <table class="table table-hover align-middle mb-0 datatable w-100">
+            <thead class="table-light text-muted">
+                <tr>
+                    <th class="ps-3 py-3">Cód.</th>
+                    <th>Nombre del Producto</th>
+                    <th>Categoría</th>
+                    <th>Unidad</th>
+                    <th>Stock Inicial</th>
+                    <th>Stock Real</th>
+                    <th class="text-end pe-3">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for producto in productos %}
+                <tr>
+                    <td class="ps-3 text-muted fw-semibold">#{{ producto.cod_prod }}</td>
+                    <td class="fw-bold text-dark">{{ producto.nombre }}</td>
+                    <td><span class="badge bg-light text-dark border px-3 py-2 rounded-pill shadow-sm"><i class="fa-solid fa-tag text-primary me-1"></i>{{ producto.categoria.nombre }}</span></td>
+                    <td>
+                        {% if producto.unidad_medida %}
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-2 rounded-pill">{{ producto.unidad_medida.abreviatura }}</span>
+                        {% else %}
+                            <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted">{{ producto.stock_inicial }}{% if producto.unidad_medida %} {{ producto.unidad_medida.abreviatura }}{% else %} un.{% endif %}</td>
+                    <td>
+                        {% if producto.stock_actual > 0 %}
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill"><i class="fa-solid fa-check-circle me-1"></i>{{ producto.stock_actual }}{% if producto.unidad_medida %} {{ producto.unidad_medida.abreviatura }}{% else %} un.{% endif %}</span>
+                        {% else %}
+                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 py-2 rounded-pill"><i class="fa-solid fa-circle-xmark me-1"></i>0{% if producto.unidad_medida %} {{ producto.unidad_medida.abreviatura }}{% else %} un.{% endif %}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end pe-3">
+                        <div class="d-flex gap-1 justify-content-end align-items-center">
+                            {% if user_perms.prod_editar or is_admin %}
+                            <a href="{% url 'producto_update' producto.pk %}"
+                               class="action-btn action-btn--primary" title="Editar">
+                                <i class="fa-solid fa-pen"></i>
+                            </a>
+                            {% endif %}
+                            {% if user_perms.prod_eliminar or is_admin %}
+                            <form method="post" action="{% url 'producto_delete' producto.pk %}" class="d-inline"
+                                  onsubmit="return confirm('¿Eliminar el producto «{{ producto.nombre }}»?\nEsta acción no se puede deshacer.')">
+                                {% csrf_token %}
+                                <button type="submit" class="action-btn action-btn--danger" title="Eliminar">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

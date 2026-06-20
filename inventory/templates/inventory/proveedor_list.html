@@ -1,0 +1,110 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+{% block title %}Proveedores{% endblock %}
+{% block content %}
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold"><i class="fa-solid fa-triangle-exclamation text-danger me-2"></i>Confirmar Eliminación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body py-3">
+        <p class="text-muted mb-0">¿Estás seguro de que deseas eliminar al proveedor <strong id="deleteItemName"></strong>? Esta acción no se puede deshacer.</p>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+        <form id="deleteForm" method="post" class="d-inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold"><i class="fa-solid fa-trash-can me-1"></i>Eliminar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'index' %}" class="btn btn-white text-muted shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Volver al inicio"><i class="fa-solid fa-arrow-left"></i></a>
+        <h2 class="fw-bold text-dark mb-0">Directorio de Proveedores</h2>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'reporte_proveedores_pdf' %}" class="btn btn-white text-danger shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" target="_blank" title="Exportar PDF">
+            <i class="fa-solid fa-file-pdf fs-5"></i>
+        </a>
+        <a href="{% url 'exportar_proveedores_excel' %}" class="btn btn-white text-success shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Exportar Excel">
+            <i class="fa-solid fa-file-excel fs-5"></i>
+        </a>
+        {% if user_perms.prov_crear or is_admin %}
+        <a href="{% url 'proveedor_create' %}" class="btn btn-primary shadow-sm rounded-pill px-4 d-flex align-items-center gap-2">
+            <i class="fa-solid fa-plus"></i> Nuevo Proveedor
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow-lg border-0 rounded-4 feature-card">
+    <div class="card-body p-4">
+        <table class="table table-hover align-middle mb-0 datatable w-100">
+            <thead class="table-light text-muted">
+                <tr>
+                    <th class="ps-3 py-3">Empresa</th>
+                    <th>Contacto</th>
+                    <th>Teléfono</th>
+                    <th>Correo</th>
+                    <th class="text-end pe-3">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for prov in proveedores %}
+                <tr>
+                    <td class="ps-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center" style="width:36px;height:36px;min-width:36px;font-weight:700;font-size:14px;">
+                                {{ prov.nombre|first|upper }}
+                            </div>
+                            <span class="fw-bold text-dark">{{ prov.nombre }}</span>
+                        </div>
+                    </td>
+                    <td><i class="fa-solid fa-user text-muted me-1"></i>{{ prov.contacto }}</td>
+                    <td><i class="fa-solid fa-phone text-muted me-1"></i>{{ prov.telefono }}</td>
+                    <td><a href="mailto:{{ prov.correo }}" class="text-decoration-none text-primary"><i class="fa-solid fa-envelope me-1"></i>{{ prov.correo }}</a></td>
+                    <td class="text-end pe-3">
+                        <div class="d-flex gap-1 justify-content-end align-items-center">
+                            {% if user_perms.prov_editar or is_admin %}
+                            <a href="{% url 'proveedor_update' prov.pk %}"
+                               class="action-btn action-btn--primary" title="Editar">
+                                <i class="fa-solid fa-pen"></i>
+                            </a>
+                            {% endif %}
+                            {% if user_perms.prov_eliminar or is_admin %}
+                            <button type="button" class="action-btn action-btn--danger"
+                                    data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                    data-name="{{ prov.nombre }}"
+                                    data-url="{% url 'proveedor_delete' prov.pk %}"
+                                    title="Eliminar">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var deleteModal = document.getElementById('deleteModal');
+    deleteModal.addEventListener('show.bs.modal', function(event) {
+        var button = event.relatedTarget;
+        document.getElementById('deleteItemName').textContent = button.getAttribute('data-name');
+        document.getElementById('deleteForm').action = button.getAttribute('data-url');
+    });
+});
+</script>
+{% endblock %}

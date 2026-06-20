@@ -1,0 +1,302 @@
+{% extends "inventory/base.html" %}
+{% block title %}Historial de Auditoría{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h4 fw-bold mb-0">
+            <i class="fa-solid fa-shield-halved me-2 text-primary"></i>Historial de Auditoría
+        </h2>
+        <span class="badge bg-secondary fs-6">{{ page_obj.paginator.count }} registros</span>
+    </div>
+
+    <!-- Filtros -->
+    <form method="get" class="card card-body mb-4 p-3">
+        <div class="row g-2">
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Bodega</label>
+                <select name="bodega_id" class="form-select form-select-sm">
+                    <option value="">Todas las bodegas</option>
+                    {% for b in bodegas %}
+                        <option value="{{ b.pk }}" {% if filtro_bodega_id == b.pk|stringformat:"s" %}selected{% endif %}>{{ b.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Producto</label>
+                <select name="producto_id" class="form-select form-select-sm">
+                    <option value="">Todos los productos</option>
+                    {% for p in productos %}
+                        <option value="{{ p.pk }}" {% if filtro_producto_id == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold">Desde</label>
+                <input type="date" name="desde" value="{{ filtro_desde }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold">Hasta</label>
+                <input type="date" name="hasta" value="{{ filtro_hasta }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-2 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                    <i class="fa-solid fa-filter me-1"></i>Filtrar
+                </button>
+                <a href="{% url 'historial_auditoria' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </a>
+            </div>
+        </div>
+    </form>
+
+    <!-- Tabla -->
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle small">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width:130px">Fecha</th>
+                        <th style="width:100px">Usuario</th>
+                        <th style="width:130px">Bodega</th>
+                        <th style="width:100px">Tipo</th>
+                        <th style="width:70px">Doc.#</th>
+                        <th>Descripción</th>
+                        <th style="width:80px" class="text-center">Cantidad</th>
+                        <th style="width:100px" class="text-center">Detalle</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in page_obj %}
+                    <!-- Fila principal -->
+                    <tr>
+                        <td class="text-nowrap text-muted">{{ h.fecha|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <span class="d-flex align-items-center gap-1">
+                                <i class="fa-solid fa-circle-user text-secondary opacity-50 fa-sm"></i>
+                                {{ h.usuario.username|default:"—" }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="d-flex align-items-center gap-1 text-muted">
+                                <i class="fa-solid fa-warehouse fa-xs opacity-50"></i>
+                                {{ h.bodega_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if h.tipo_accion == 'INGRESO_CREAR' %}
+                                <span class="badge rounded-pill bg-success" style="font-size:.78em;">
+                                    <i class="fa-solid fa-arrow-down me-1"></i>Ingreso
+                                </span>
+                            {% elif h.tipo_accion == 'SALIDA_CREAR' %}
+                                <span class="badge rounded-pill bg-danger" style="font-size:.78em;">
+                                    <i class="fa-solid fa-arrow-up me-1"></i>Salida
+                                </span>
+                            {% elif h.tipo_accion == 'TRANSFERENCIA_DESPACHAR' %}
+                                <span class="badge rounded-pill bg-primary" style="font-size:.78em;">
+                                    <i class="fa-solid fa-truck me-1"></i>GDI envío
+                                </span>
+                            {% elif h.tipo_accion == 'TRANSFERENCIA_RECIBIR' %}
+                                <span class="badge rounded-pill bg-info text-dark" style="font-size:.78em;">
+                                    <i class="fa-solid fa-truck-ramp-box me-1"></i>GDI recep.
+                                </span>
+                            {% elif h.tipo_accion == 'TRANSFERENCIA_EDITAR' %}
+                                <span class="badge rounded-pill bg-secondary" style="font-size:.78em;">
+                                    <i class="fa-solid fa-pen me-1"></i>GDI edit.
+                                </span>
+                            {% elif h.tipo_accion == 'ORDEN_CREAR' %}
+                                <span class="badge rounded-pill bg-warning text-dark" style="font-size:.78em;">
+                                    <i class="fa-solid fa-file-invoice-dollar me-1"></i>OC nueva
+                                </span>
+                            {% elif h.tipo_accion == 'ORDEN_EDITAR' %}
+                                <span class="badge rounded-pill bg-secondary" style="font-size:.78em;">
+                                    <i class="fa-solid fa-pen me-1"></i>OC edit.
+                                </span>
+                            {% else %}
+                                <span class="badge rounded-pill bg-secondary" style="font-size:.78em;">{{ h.tipo_accion }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">
+                            {% if h.objeto_id %}#{{ h.objeto_id }}{% else %}—{% endif %}
+                        </td>
+                        <td class="text-muted">{{ h.accion }}</td>
+
+                        <!-- Cantidad siempre visible -->
+                        <td class="text-center">
+                            {% if h.total_cantidad %}
+                                {% if h.tipo_accion == 'INGRESO_CREAR' or h.tipo_accion == 'TRANSFERENCIA_RECIBIR' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 fw-bold">
+                                        +{{ h.total_cantidad }}
+                                    </span>
+                                {% elif h.tipo_accion == 'SALIDA_CREAR' or h.tipo_accion == 'TRANSFERENCIA_DESPACHAR' %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2 fw-bold">
+                                        −{{ h.total_cantidad }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2">
+                                        {{ h.total_cantidad }}
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Botón detalle expandible -->
+                        <td class="text-center">
+                            {% if h.datos %}
+                            <button class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#detalle-{{ forloop.counter }}"
+                                    aria-expanded="false">
+                                <i class="fa-solid fa-list-ul me-1"></i>Ver
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- Fila de detalle expandible -->
+                    {% if h.datos %}
+                    <tr class="collapse" id="detalle-{{ forloop.counter }}">
+                        <td colspan="8" class="p-0">
+                            <div class="bg-light border-top border-bottom px-4 py-3">
+
+                                {% with datos=h.datos %}
+
+                                <!-- Info del documento -->
+                                <div class="row g-3 mb-3">
+                                    {% if datos.orden_compra %}
+                                    <div class="col-auto">
+                                        <span class="text-muted small">Orden de Compra:</span>
+                                        <span class="fw-semibold ms-1">{{ datos.orden_compra }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if datos.tipo_documento %}
+                                    <div class="col-auto">
+                                        <span class="text-muted small">Tipo doc.:</span>
+                                        <span class="fw-semibold ms-1">{{ datos.tipo_documento }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if datos.num_documento %}
+                                    <div class="col-auto">
+                                        <span class="text-muted small">N° doc.:</span>
+                                        <span class="fw-semibold ms-1">{{ datos.num_documento }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if datos.proveedor %}
+                                    <div class="col-auto">
+                                        <span class="text-muted small">Proveedor:</span>
+                                        <span class="fw-semibold ms-1">{{ datos.proveedor }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if datos.origen %}
+                                    <div class="col-auto">
+                                        <span class="text-muted small">Origen:</span>
+                                        <span class="fw-semibold ms-1">{{ datos.origen }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if datos.destino %}
+                                    <div class="col-auto">
+                                        <span class="text-muted small">Destino:</span>
+                                        <span class="fw-semibold ms-1">{{ datos.destino }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if datos.estado %}
+                                    <div class="col-auto">
+                                        <span class="text-muted small">Estado:</span>
+                                        <span class="fw-semibold ms-1">{{ datos.estado }}</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Tabla de productos -->
+                                {% if datos.productos %}
+                                <div class="table-responsive" style="max-width:600px;">
+                                    <table class="table table-sm table-bordered mb-0 bg-white rounded" style="font-size:.82em;">
+                                        <thead class="table-secondary">
+                                            <tr>
+                                                <th>Producto</th>
+                                                <th class="text-center" style="width:80px;">Cantidad</th>
+                                                {% if datos.productos.0.precio %}
+                                                <th class="text-end" style="width:90px;">Precio unit.</th>
+                                                {% endif %}
+                                                {% if datos.productos.0.enviada %}
+                                                <th class="text-center" style="width:80px;">Enviada</th>
+                                                {% endif %}
+                                                {% if datos.productos.0.recibida %}
+                                                <th class="text-center" style="width:80px;">Recibida</th>
+                                                {% endif %}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for p in datos.productos %}
+                                            <tr>
+                                                <td>{{ p.nombre }}</td>
+                                                <td class="text-center fw-semibold">
+                                                    {% if p.cantidad %}{{ p.cantidad }}{% elif p.enviada %}{{ p.enviada }}{% else %}—{% endif %}
+                                                </td>
+                                                {% if datos.productos.0.precio %}
+                                                <td class="text-end text-muted">${{ p.precio }}</td>
+                                                {% endif %}
+                                                {% if datos.productos.0.enviada %}
+                                                <td class="text-center">{{ p.enviada|default:"—" }}</td>
+                                                {% endif %}
+                                                {% if datos.productos.0.recibida %}
+                                                <td class="text-center">{{ p.recibida|default:"—" }}</td>
+                                                {% endif %}
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% endif %}
+
+                                {% endwith %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-5">
+                            <i class="fa-solid fa-inbox fa-2x d-block mb-2 opacity-25"></i>
+                            Sin registros para los filtros seleccionados
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer d-flex justify-content-between align-items-center py-2">
+            <small class="text-muted">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                ({{ page_obj.paginator.count }} registros)
+            </small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&bodega_id={{ filtro_bodega_id }}&producto_id={{ filtro_producto_id }}&desde={{ filtro_desde }}&hasta={{ filtro_hasta }}">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&bodega_id={{ filtro_bodega_id }}&producto_id={{ filtro_producto_id }}&desde={{ filtro_desde }}&hasta={{ filtro_hasta }}">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

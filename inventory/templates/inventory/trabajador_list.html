@@ -1,0 +1,123 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+{% block title %}Trabajadores{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'index' %}" class="btn rounded-circle" title="Volver al inicio">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="fw-bold mb-0" style="font-size:1.35rem;">Gestión de Personal</h2>
+            <p class="mb-0 text-muted" style="font-size:0.8rem;">Trabajadores registrados en el sistema.</p>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        {% if user_perms.trab_crear or is_admin %}
+        <a href="{% url 'trabajador_crear' %}" class="btn btn-primary rounded-pill px-4 fw-semibold">
+            <i class="fa-solid fa-plus me-2"></i>Nuevo Trabajador
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<form method="get" class="mb-4">
+    <div class="row g-2 align-items-center">
+        <div class="col-md-6">
+            <div class="input-group shadow-sm rounded-pill overflow-hidden">
+                <input type="text" name="q" value="{{ request.GET.q }}" class="form-control border-0 px-4 py-2 bg-white" placeholder="Buscar por nombre, correo o cargo...">
+                <button class="btn btn-primary px-4 fw-bold" type="submit">Buscar</button>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select name="estado" class="form-select shadow-sm" onchange="this.form.submit()">
+                <option value="">Todos los estados</option>
+                <option value="activo" {% if request.GET.estado == 'activo' %}selected{% endif %}>Solo activos</option>
+                <option value="inactivo" {% if request.GET.estado == 'inactivo' %}selected{% endif %}>Solo inactivos</option>
+            </select>
+        </div>
+    </div>
+</form>
+
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4 py-3">Nombre Completo</th>
+                    <th>Correo</th>
+                    <th>Cargo</th>
+                    <th>Sueldo</th>
+                    <th class="text-center">Estado</th>
+                    <th class="text-end pe-4">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in trabajadores %}
+                <tr {% if not t.activo %}class="table-secondary text-muted"{% endif %}>
+                    <td class="ps-4 fw-bold {% if t.activo %}text-primary{% else %}text-muted{% endif %}">
+                        {{ t.nombre }} {{ t.apellido }}
+                    </td>
+                    <td><a href="mailto:{{ t.correo }}" class="text-decoration-none">{{ t.correo }}</a></td>
+                    <td>{{ t.get_cargo_display }}</td>
+                    <td>{% load inventory_extras %}{{ t.sueldo|clp }}</td>
+                    <td class="text-center">
+                        {% if t.activo %}
+                        <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2 fw-semibold">
+                            <i class="fa-solid fa-circle-check me-1"></i>Activo
+                        </span>
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-2 fw-semibold">
+                            <i class="fa-solid fa-circle-xmark me-1"></i>Inactivo
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end pe-4">
+                        <div class="d-flex gap-1 justify-content-end align-items-center">
+                            {% if user_perms.trab_editar or is_admin %}
+                            <a href="{% url 'trabajador_editar' t.pk %}"
+                               class="action-btn action-btn--primary" title="Editar">
+                                <i class="fa-solid fa-pen"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-5">
+                        <div style="color:var(--gray-300); font-size:2.5rem; margin-bottom:.75rem;">
+                            <i class="fa-solid fa-hard-hat"></i>
+                        </div>
+                        <p class="fw-semibold text-muted mb-1">No hay trabajadores registrados</p>
+                        <p class="text-muted" style="font-size:0.82rem;">Intenta con otro término o registra uno nuevo.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if is_paginated %}
+<nav class="mt-4" aria-label="Paginación de trabajadores">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link rounded-pill me-1" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.estado %}estado={{ request.GET.estado }}&{% endif %}page={{ page_obj.previous_page_number }}">← Anterior</a>
+        </li>
+        {% endif %}
+        <li class="page-item disabled">
+            <span class="page-link rounded-pill mx-1 bg-primary text-white border-0">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            </span>
+        </li>
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link rounded-pill ms-1" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.estado %}estado={{ request.GET.estado }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente →</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

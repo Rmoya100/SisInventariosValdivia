@@ -1,0 +1,402 @@
+{% extends 'inventory/base.html' %}
+
+{% block title %}Dashboard Analítico — Control de Inventarios{% endblock %}
+
+{% block content %}
+<style>
+    .chart-card {
+        border-radius: 16px;
+        border: none;
+        box-shadow: 0 2px 12px rgba(0,0,0,.06);
+        background: #fff;
+        overflow: hidden;
+    }
+    .chart-card-header {
+        padding: 18px 20px 10px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+    .chart-card-header .icon-box {
+        width: 36px; height: 36px;
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 15px;
+        flex-shrink: 0;
+    }
+    .chart-card-title { font-size: 14px; font-weight: 700; color: #0f172a; margin: 0; }
+    .chart-card-sub   { font-size: 11px; color: #94a3b8; margin: 0; }
+    .chart-card-body  { padding: 16px 20px 20px; }
+
+    .kpi-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: #f8fafc; border: 1px solid #e2e8f0;
+        border-radius: 20px; padding: 4px 12px;
+        font-size: 11px; font-weight: 600; color: #475569;
+    }
+    .kpi-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 992px) { .dash-grid { grid-template-columns: 1fr; } }
+</style>
+
+<!-- ── Page header ───────────────────────────────── -->
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h2 class="fw-bold text-dark mb-1">
+            <i class="fa-solid fa-chart-line text-primary me-2"></i>Dashboard Analítico
+        </h2>
+        <p class="text-muted mb-0 small">
+            <i class="fa-regular fa-clock me-1"></i>
+            Datos actualizados al momento de la carga de la página.
+        </p>
+    </div>
+    <a href="{% url 'index' %}" class="btn btn-light shadow-sm rounded-pill px-4">
+        <i class="fa-solid fa-arrow-left me-2"></i>Inicio
+    </a>
+</div>
+
+<!-- ── Row 1: Stock + Inversión por módulo ────────── -->
+<div class="row g-4 mb-4">
+
+    <!-- Top 10 Productos Stock -->
+    <div class="col-lg-7">
+        <div class="chart-card h-100">
+            <div class="chart-card-header">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="icon-box" style="background:rgba(79,70,229,.1);">
+                        <i class="fa-solid fa-boxes-stacked" style="color:#4f46e5;"></i>
+                    </div>
+                    <div>
+                        <p class="chart-card-title">Top 10 Productos por Stock</p>
+                        <p class="chart-card-sub">Unidades disponibles en inventario</p>
+                    </div>
+                </div>
+                <span class="kpi-pill">
+                    <span class="dot" style="background:#4f46e5;"></span>
+                    Stock actual
+                </span>
+            </div>
+            <div class="chart-card-body">
+                <div style="position:relative; height:340px;">
+                    <canvas id="stockChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inversión por Módulo -->
+    <div class="col-lg-5">
+        <div class="chart-card h-100">
+            <div class="chart-card-header">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="icon-box" style="background:rgba(16,185,129,.1);">
+                        <i class="fa-solid fa-chart-pie" style="color:#10b981;"></i>
+                    </div>
+                    <div>
+                        <p class="chart-card-title">Inversión por Módulo / Torre</p>
+                        <p class="chart-card-sub">Valorización de salidas (CLP)</p>
+                    </div>
+                </div>
+            </div>
+            <div class="chart-card-body">
+                <div style="position:relative; height:340px;">
+                    <canvas id="moneyChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Row 2: OC Estados + Últimas salidas ────────── -->
+<div class="row g-4 mb-4">
+
+    <!-- Estados OC -->
+    <div class="col-lg-4">
+        <div class="chart-card h-100">
+            <div class="chart-card-header">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="icon-box" style="background:rgba(245,158,11,.1);">
+                        <i class="fa-solid fa-file-invoice-dollar" style="color:#f59e0b;"></i>
+                    </div>
+                    <div>
+                        <p class="chart-card-title">Órdenes de Compra</p>
+                        <p class="chart-card-sub">Estado de órdenes activas</p>
+                    </div>
+                </div>
+            </div>
+            <div class="chart-card-body">
+                <div style="position:relative; height:260px;">
+                    <canvas id="ocChart"></canvas>
+                </div>
+                {% if not oc_counts %}
+                <div class="text-center text-muted py-4">
+                    <i class="fa-solid fa-circle-check text-success fs-2 d-block mb-2"></i>
+                    Todas las órdenes están completas
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Últimas salidas -->
+    <div class="col-lg-8">
+        <div class="chart-card h-100">
+            <div class="chart-card-header">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="icon-box" style="background:rgba(239,68,68,.1);">
+                        <i class="fa-solid fa-right-from-bracket" style="color:#ef4444;"></i>
+                    </div>
+                    <div>
+                        <p class="chart-card-title">Últimas 10 Salidas</p>
+                        <p class="chart-card-sub">Movimientos de despacho recientes</p>
+                    </div>
+                </div>
+                <a href="{% url 'salidas' %}" class="btn btn-sm btn-outline-danger rounded-pill">
+                    <i class="fa-solid fa-arrow-right me-1"></i>Ver todo
+                </a>
+            </div>
+            <div class="chart-card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size:13px;">
+                        <thead style="background:#f8fafc;">
+                            <tr>
+                                <th class="px-4 py-3 text-muted fw-600" style="font-size:11px;letter-spacing:.5px;text-transform:uppercase;">N° Salida</th>
+                                <th class="px-4 py-3 text-muted fw-600" style="font-size:11px;letter-spacing:.5px;text-transform:uppercase;">Solicitante</th>
+                                <th class="px-4 py-3 text-muted fw-600" style="font-size:11px;letter-spacing:.5px;text-transform:uppercase;">Módulo / Torre</th>
+                                <th class="px-4 py-3 text-muted fw-600" style="font-size:11px;letter-spacing:.5px;text-transform:uppercase;">Fecha</th>
+                                <th class="px-4 py-3 text-muted fw-600" style="font-size:11px;letter-spacing:.5px;text-transform:uppercase;">Proyecto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for salida in salidas_recientes %}
+                            <tr>
+                                <td class="px-4 py-3">
+                                    <span class="badge rounded-pill" style="background:rgba(239,68,68,.1);color:#dc2626;font-size:12px;padding:5px 10px;">
+                                        #{{ salida.numSalida }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 fw-semibold">{{ salida.solicitante|default:"—" }}</td>
+                                <td class="px-4 py-3">
+                                    {% if salida.modulo_torre %}
+                                    <span class="badge bg-light text-dark border" style="font-size:11px;">
+                                        <i class="fa-solid fa-layer-group me-1 text-primary"></i>{{ salida.modulo_torre }}
+                                    </span>
+                                    {% else %}<span class="text-muted">—</span>{% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-muted">{{ salida.fecha|date:"d/m/Y" }}</td>
+                                <td class="px-4 py-3 text-muted small">{{ salida.proyecto.nombre|default:"—" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <i class="fa-solid fa-inbox fs-3 d-block mb-2"></i>
+                                    No hay movimientos registrados.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Scripts ───────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    Chart.defaults.font.family = "'Inter', 'Helvetica Neue', Arial, sans-serif";
+    Chart.defaults.font.size = 12;
+    Chart.defaults.color = '#64748b';
+
+    // ── Paleta de colores ─────────────────────────
+    const PALETTE = [
+        '#4f46e5','#10b981','#f59e0b','#ef4444','#8b5cf6',
+        '#06b6d4','#ec4899','#6366f1','#14b8a6','#f97316'
+    ];
+
+    // ── Helper: gradiente horizontal ─────────────
+    function hGradient(ctx, color, alpha1 = 0.85, alpha2 = 0.25) {
+        const gradient = ctx.createLinearGradient(0, 0, ctx.canvas.width, 0);
+        gradient.addColorStop(0, color.replace(')', `,${alpha1})`).replace('rgb', 'rgba'));
+        gradient.addColorStop(1, color.replace(')', `,${alpha2})`).replace('rgb', 'rgba'));
+        return gradient;
+    }
+
+    // ── Convierte hex a rgba ──────────────────────
+    function hexToRgba(hex, a) {
+        const r = parseInt(hex.slice(1,3),16);
+        const g = parseInt(hex.slice(3,5),16);
+        const b = parseInt(hex.slice(5,7),16);
+        return `rgba(${r},${g},${b},${a})`;
+    }
+
+    // ── Chart 1: Top 10 Stock (horizontal bar) ───
+    const ctxStock = document.getElementById('stockChart');
+    const stockLabels = [{% for p in productos_top_stock %}'{{ p.nombre|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+    const stockData   = [{% for p in productos_top_stock %}{{ p.stock_actual }}{% if not forloop.last %},{% endif %}{% endfor %}];
+    const stockColors = stockData.map(v => {
+        if (v === 0) return '#fee2e2';
+        if (v <= 5)  return '#fef9c3';
+        return hexToRgba('#4f46e5', 0.8);
+    });
+    const stockBorder = stockData.map(v => {
+        if (v === 0) return '#dc2626';
+        if (v <= 5)  return '#d97706';
+        return '#4f46e5';
+    });
+
+    new Chart(ctxStock, {
+        type: 'bar',
+        data: {
+            labels: stockLabels,
+            datasets: [{
+                label: 'Stock Actual',
+                data: stockData,
+                backgroundColor: stockColors,
+                borderColor: stockBorder,
+                borderWidth: 1.5,
+                borderRadius: { topRight: 6, bottomRight: 6 },
+                borderSkipped: 'left',
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    padding: 10,
+                    callbacks: {
+                        label: ctx => ` ${ctx.raw} unidades`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    grid: { color: '#f1f5f9' },
+                    ticks: { color: '#94a3b8', font: { size: 11 } }
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { color: '#334155', font: { size: 11 } }
+                }
+            }
+        }
+    });
+
+    // ── Chart 2: Inversión por módulo (doughnut) ─
+    const ctxMoney = document.getElementById('moneyChart');
+    const modLabels  = [{% for l in modulos_labels %}'{{ l|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+    const modValues  = [{% for v in modulos_valores %}{{ v }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+    if (modLabels.length > 0 && modValues.reduce((a,b)=>a+b,0) > 0) {
+        new Chart(ctxMoney, {
+            type: 'doughnut',
+            data: {
+                labels: modLabels,
+                datasets: [{
+                    data: modValues,
+                    backgroundColor: PALETTE,
+                    borderColor: '#fff',
+                    borderWidth: 3,
+                    hoverOffset: 8,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '62%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 16,
+                            font: { size: 11 },
+                            usePointStyle: true,
+                            pointStyleWidth: 8,
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        padding: 10,
+                        callbacks: {
+                            label: ctx => {
+                                const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+                                const pct   = ((ctx.raw / total) * 100).toFixed(1);
+                                const fmt   = new Intl.NumberFormat('es-CL', { style:'currency', currency:'CLP', maximumFractionDigits: 0 });
+                                return ` ${fmt.format(ctx.raw)} (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        ctxMoney.parentElement.innerHTML = `
+            <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted">
+                <i class="fa-solid fa-chart-pie fs-1 mb-3" style="opacity:.2;"></i>
+                <p class="small mb-0">Sin datos de salidas para graficar</p>
+            </div>`;
+    }
+
+    // ── Chart 3: Estados OC (bar horizontal) ─────
+    const ctxOc = document.getElementById('ocChart');
+    const ocLabels = [{% for l in oc_labels %}'{{ l|escapejs }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+    const ocCounts = [{% for v in oc_counts %}{{ v }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+    if (ocLabels.length > 0) {
+        const ocColors = ocLabels.map(l => {
+            if (l && l.includes('Pendiente')) return hexToRgba('#f59e0b', .8);
+            if (l && l.includes('Parcial'))   return hexToRgba('#3b82f6', .8);
+            return hexToRgba('#10b981', .8);
+        });
+        new Chart(ctxOc, {
+            type: 'bar',
+            data: {
+                labels: ocLabels,
+                datasets: [{
+                    label: 'Órdenes',
+                    data: ocCounts,
+                    backgroundColor: ocColors,
+                    borderRadius: { topRight: 6, bottomRight: 6 },
+                    borderSkipped: 'left',
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1e293b',
+                        padding: 10,
+                        callbacks: { label: ctx => ` ${ctx.raw} órdenes` }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, color: '#94a3b8', font: { size: 11 } },
+                        grid: { color: '#f1f5f9' }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: '#334155', font: { size: 12 } }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

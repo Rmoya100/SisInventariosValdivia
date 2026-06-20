@@ -1,0 +1,59 @@
+{% extends 'inventory/reportes/base_pdf.html' %}
+
+{% block title %}Stock por Bodega{% endblock %}
+{% block report_section %}Inventario{% endblock %}
+{% block report_title %}{{ titulo_reporte|default:"Reporte de Stock por Bodega / Proyecto" }}{% endblock %}
+
+{% block report_summary %}
+<div class="summary-grid">
+    <div class="summary-card">
+        <div class="sum-label">Registros</div>
+        <div class="sum-value">{{ stocks|length }}</div>
+        <div class="sum-sub">combinaciones producto-proyecto</div>
+    </div>
+    <div class="summary-card" style="border-left-color:#dc2626;background:#fef2f2;">
+        <div class="sum-label" style="color:#991b1b;">En Cero</div>
+        <div class="sum-value" style="color:#7f1d1d;">
+            {% for s in stocks %}{% if s.cantidad == 0 %}{{ forloop.counter }}{% endif %}{% endfor %}
+        </div>
+        <div class="sum-sub">productos agotados en proyecto</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Producto</th>
+            <th>Categoría</th>
+            <th>Proyecto / Bodega</th>
+            <th class="text-right">Cantidad</th>
+            <th class="text-center">Estado</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for stock in stocks %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td class="bold">{{ stock.producto.nombre }}</td>
+            <td><span class="badge badge-default">{{ stock.producto.categoria.nombre }}</span></td>
+            <td>{{ stock.proyecto.nombre|default:"Sin Proyecto" }}</td>
+            <td class="text-right bold {% if stock.cantidad == 0 %}text-danger{% endif %}">{{ stock.cantidad }} un.</td>
+            <td class="text-center">
+                {% if stock.cantidad == 0 %}
+                    <span class="badge badge-danger">Sin Stock</span>
+                {% elif stock.cantidad <= 5 %}
+                    <span class="badge badge-warning">Bajo</span>
+                {% else %}
+                    <span class="badge badge-success">OK</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center muted" style="padding:24px;">No hay datos de stock registrados.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

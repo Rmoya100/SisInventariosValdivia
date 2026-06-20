@@ -1,0 +1,97 @@
+{% extends 'inventory/base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <a href="{% url 'maquinarias' %}" class="btn btn-light shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Volver"><span class="fs-4">←</span></a>
+            <h2 class="fw-bold text-info mb-0">Mantenimiento de Maquinarias</h2>
+        </div>
+    </div>
+    <div class="row">
+        <!-- Formulario -->
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-warning">Enviar a Mantenimiento</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Maquinaria</label>
+                            {{ form.maquinaria }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Proveedor (Taller)</label>
+                            {{ form.proveedor }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Hrs/Km al momento del mantenimiento</label>
+                            {{ form.valor_mantenimiento }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Observaciones</label>
+                            {{ form.observaciones }}
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100 text-white fw-bold">Enviar a Mantenimiento</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Listado -->
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Historial de Mantenimientos</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Maquinaria</th>
+                                    <th>Proveedor</th>
+                                    <th>Hrs/Km</th>
+                                    <th>Fecha Envío</th>
+                                    <th>Fecha Recepción</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for m in mantenimientos %}
+                                <tr>
+                                    <td>{{ m.maquinaria.get_tipo_maquina_display }} <small class="text-muted">({{ m.maquinaria.patente_o_codigo }})</small></td>
+                                    <td>{{ m.proveedor.nombre }}</td>
+                                    <td>{{ m.valor_mantenimiento }}</td>
+                                    <td>{{ m.fecha_envio|date:"d/m/Y" }}</td>
+                                    <td>{{ m.fecha_recepcion|date:"d/m/Y"|default:"—" }}</td>
+                                    <td>
+                                        {% if m.fecha_recepcion %}
+                                            <span class="badge bg-success">Recepcionada</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark">En Mantenimiento</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if not m.fecha_recepcion %}
+                                        <a href="{% url 'recibir_maquinaria_mantenimiento' m.pk %}" class="btn btn-sm btn-success">Recepcionar</a>
+                                        {% else %}
+                                        <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="7" class="text-center">No hay registros de mantenimiento.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,221 @@
+{% extends "inventory/base.html" %}
+{% block title %}Movimientos por Usuario{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h4 fw-bold mb-0">
+            <i class="fa-solid fa-user-clock me-2 text-primary"></i>Movimientos por Usuario
+        </h2>
+    </div>
+
+    <!-- Filtros -->
+    <form method="get" class="card card-body mb-4 p-3">
+        <div class="row g-2">
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Usuario <span class="text-danger">*</span></label>
+                <select name="usuario_id" class="form-select form-select-sm" required>
+                    <option value="">— Seleccionar usuario —</option>
+                    {% for u in usuarios %}
+                        <option value="{{ u.pk }}" {% if filtro_usuario_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold">Tipo de movimiento</label>
+                <select name="tipo" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    {% for val, label in tipo_choices %}
+                        <option value="{{ val }}" {% if filtro_tipo == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold">Desde</label>
+                <input type="date" name="desde" value="{{ filtro_desde }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold">Hasta</label>
+                <input type="date" name="hasta" value="{{ filtro_hasta }}" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-3 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                    <i class="fa-solid fa-filter me-1"></i>Filtrar
+                </button>
+                <a href="{% url 'reporte_movimientos_usuario' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </a>
+            </div>
+        </div>
+    </form>
+
+    {% if filtro_usuario_id %}
+
+    <!-- Resumen por tipo -->
+    {% if resumen %}
+    <div class="row g-3 mb-4">
+        {% for r in resumen %}
+        <div class="col-6 col-md-3 col-lg-2">
+            <div class="card text-center border-0 shadow-sm h-100">
+                <div class="card-body py-3">
+                    <div class="fs-4 fw-bold text-primary">{{ r.total }}</div>
+                    <div class="small text-muted">
+                        {% if r.tipo_accion == 'INGRESO_CREAR' %}<span class="badge bg-success">Ingresos</span>
+                        {% elif r.tipo_accion == 'SALIDA_CREAR' %}<span class="badge bg-danger">Salidas</span>
+                        {% elif r.tipo_accion == 'TRANSFERENCIA_DESPACHAR' %}<span class="badge bg-primary">GDI envíos</span>
+                        {% elif r.tipo_accion == 'TRANSFERENCIA_RECIBIR' %}<span class="badge bg-info text-dark">GDI recep.</span>
+                        {% elif r.tipo_accion == 'TRANSFERENCIA_EDITAR' %}<span class="badge bg-secondary">GDI edits</span>
+                        {% elif r.tipo_accion == 'ORDEN_CREAR' %}<span class="badge bg-warning text-dark">OC creadas</span>
+                        {% elif r.tipo_accion == 'ORDEN_EDITAR' %}<span class="badge bg-secondary">OC edits</span>
+                        {% else %}<span class="badge bg-secondary">{{ r.tipo_accion }}</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        <div class="col-6 col-md-3 col-lg-2">
+            <div class="card text-center border-0 shadow-sm h-100 bg-light">
+                <div class="card-body py-3">
+                    <div class="fs-4 fw-bold">{{ page_obj.paginator.count }}</div>
+                    <div class="small text-muted">Total registros</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tabla de movimientos -->
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center py-2">
+            <span class="fw-semibold small">
+                <i class="fa-solid fa-user me-1"></i>
+                {% if usuario_sel %}{{ usuario_sel.get_full_name|default:usuario_sel.username }}{% endif %}
+            </span>
+            <span class="badge bg-secondary">{{ page_obj.paginator.count }} movimientos</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0 align-middle small">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width:140px">Fecha</th>
+                        <th style="width:100px">Tipo</th>
+                        <th style="width:110px">Bodega</th>
+                        <th style="width:75px">Doc. #</th>
+                        <th>Descripción</th>
+                        <th style="width:50px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in page_obj %}
+                    <tr>
+                        <td class="text-nowrap">{{ h.fecha|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            {% if h.tipo_accion == 'INGRESO_CREAR' %}
+                                <span class="badge bg-success">Ingreso</span>
+                            {% elif h.tipo_accion == 'SALIDA_CREAR' %}
+                                <span class="badge bg-danger">Salida</span>
+                            {% elif h.tipo_accion == 'TRANSFERENCIA_DESPACHAR' %}
+                                <span class="badge bg-primary">GDI envío</span>
+                            {% elif h.tipo_accion == 'TRANSFERENCIA_RECIBIR' %}
+                                <span class="badge bg-info text-dark">GDI recep.</span>
+                            {% elif h.tipo_accion == 'TRANSFERENCIA_EDITAR' %}
+                                <span class="badge bg-secondary">GDI edit.</span>
+                            {% elif h.tipo_accion == 'ORDEN_CREAR' %}
+                                <span class="badge bg-warning text-dark">OC nueva</span>
+                            {% elif h.tipo_accion == 'ORDEN_EDITAR' %}
+                                <span class="badge bg-secondary">OC edit.</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ h.tipo_accion }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted">{{ h.bodega.nombre|default:"—" }}</td>
+                        <td class="text-muted">
+                            {% if h.objeto_id %}#{{ h.objeto_id }}{% else %}—{% endif %}
+                        </td>
+                        <td>{{ h.accion }}</td>
+                        <td class="text-center">
+                            {% if h.datos %}
+                            <button class="btn btn-sm btn-outline-secondary py-0 px-1"
+                                    type="button"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#detalleModal"
+                                    data-accion="{{ h.accion }}"
+                                    data-datos="{{ h.datos|pprint }}">
+                                <i class="fa-solid fa-circle-info"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="fa-solid fa-inbox fa-2x d-block mb-2 opacity-25"></i>
+                            Sin movimientos para los filtros seleccionados
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer d-flex justify-content-between align-items-center py-2">
+            <small class="text-muted">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                ({{ page_obj.paginator.count }} registros)
+            </small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&usuario_id={{ filtro_usuario_id }}&tipo={{ filtro_tipo }}&desde={{ filtro_desde }}&hasta={{ filtro_hasta }}">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&usuario_id={{ filtro_usuario_id }}&tipo={{ filtro_tipo }}&desde={{ filtro_desde }}&hasta={{ filtro_hasta }}">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+    {% else %}
+    <div class="text-center text-muted py-5">
+        <i class="fa-solid fa-user-clock fa-3x d-block mb-3 opacity-25"></i>
+        <p class="mb-0">Selecciona un usuario para ver sus movimientos</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal detalle JSON -->
+<div class="modal fade" id="detalleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa-solid fa-circle-info me-2"></i>Detalle del evento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="fw-semibold mb-2" id="modalAcion"></p>
+                <pre id="modalDatos" class="bg-light rounded p-3 small" style="white-space:pre-wrap;max-height:400px;overflow-y:auto"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('detalleModal').addEventListener('show.bs.modal', function(e) {
+    var btn = e.relatedTarget;
+    document.getElementById('modalAcion').textContent = btn.dataset.accion;
+    document.getElementById('modalDatos').textContent  = btn.dataset.datos;
+});
+</script>
+{% endblock %}

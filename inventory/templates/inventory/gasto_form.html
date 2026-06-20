@@ -1,0 +1,132 @@
+{% extends 'inventory/base.html' %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-3">
+    <div class="col-md-8 col-lg-6">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold mb-0 text-primary">{{ titulo }}</h2>
+            <a href="{{ url_volver }}" class="btn btn-outline-secondary rounded-pill px-4 shadow-sm">← Volver atrás</a>
+        </div>
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-5">
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    {# Proyecto #}
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold text-secondary">{{ form.proyecto.label }}</label>
+                        {{ form.proyecto }}
+                        {% for error in form.proyecto.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+
+                    {# Tipo y Número de Documento #}
+                    <div class="row g-3 mb-4">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold text-secondary">{{ form.tipo_documento.label }}</label>
+                            {{ form.tipo_documento }}
+                            {% for error in form.tipo_documento.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold text-secondary">{{ form.num_documento.label }}</label>
+                            {{ form.num_documento }}
+                            {% for error in form.num_documento.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        </div>
+                    </div>
+
+                    {# Concepto #}
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold text-secondary">{{ form.concepto.label }}</label>
+                        {{ form.concepto }}
+                        {% for error in form.concepto.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+
+                    {# Fecha #}
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold text-secondary">{{ form.fecha.label }}</label>
+                        {{ form.fecha }}
+                        {% for error in form.fecha.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+
+                    {# Monto — con preview CLP en vivo #}
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold text-secondary">{{ form.monto.label }}</label>
+                        {{ form.monto }}
+                        <div id="monto_preview" class="mt-1 fw-bold text-primary" style="font-size:1.1rem; min-height:1.4rem;"></div>
+                        {% for error in form.monto.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+
+                    {# Observaciones #}
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold text-secondary">{{ form.observaciones.label }}</label>
+                        {{ form.observaciones }}
+                        {% for error in form.observaciones.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+
+                    {# Boleta / Factura #}
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold text-secondary">
+                            <i class="fa-solid fa-paperclip me-1"></i>{{ form.archivo_respaldo.label }}
+                            <span class="text-muted fw-normal small">(opcional — imagen o PDF, máx. 10 MB)</span>
+                        </label>
+                        {% if form.instance.archivo_respaldo %}
+                        <div class="mb-2 d-flex align-items-center gap-2">
+                            <a href="{{ form.instance.archivo_respaldo.url }}" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                                <i class="fa-solid fa-eye me-1"></i> Ver adjunto actual
+                            </a>
+                            <span class="text-muted small">{{ form.instance.archivo_respaldo.name|slice:"16:" }}</span>
+                        </div>
+                        {% endif %}
+                        {{ form.archivo_respaldo }}
+                        {% for error in form.archivo_respaldo.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                        <div id="archivo_preview" class="mt-2" style="display:none;"></div>
+                    </div>
+
+                    <hr class="mt-5 mb-4 text-muted">
+                    <div class="text-end">
+                        <a href="{{ url_volver }}" class="btn btn-light text-muted rounded-pill px-4 me-2">Cancelar</a>
+                        <button type="submit" class="btn btn-primary rounded-pill px-5 shadow-sm fw-bold">Guardar Cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var montoInput     = document.getElementById('id_monto');
+    var montoPreview   = document.getElementById('monto_preview');
+    var archivoInput   = document.querySelector('input[name="archivo_respaldo"]');
+    var archivoPreview = document.getElementById('archivo_preview');
+
+    var fmtCLP = new Intl.NumberFormat('es-CL', {
+        style: 'currency', currency: 'CLP', maximumFractionDigits: 0
+    });
+
+    function updateMontoPreview() {
+        var val = parseFloat(montoInput.value);
+        montoPreview.textContent = isNaN(val) || montoInput.value === '' ? '' : fmtCLP.format(val);
+    }
+
+    function updateArchivoPreview() {
+        var file = archivoInput.files[0];
+        if (!file) { archivoPreview.style.display = 'none'; return; }
+        archivoPreview.style.display = '';
+        if (file.type.startsWith('image/')) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                archivoPreview.innerHTML = '<img src="' + e.target.result + '" class="img-thumbnail rounded-3" style="max-height:200px;">';
+            };
+            reader.readAsDataURL(file);
+        } else {
+            archivoPreview.innerHTML = '<span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-2"><i class="fa-solid fa-file-pdf me-1"></i>' + file.name + '</span>';
+        }
+    }
+
+    montoInput.addEventListener('input', updateMontoPreview);
+    if (archivoInput) archivoInput.addEventListener('change', updateArchivoPreview);
+
+    updateMontoPreview();
+})();
+</script>
+{% endblock %}

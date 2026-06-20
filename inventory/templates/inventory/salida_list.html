@@ -1,0 +1,452 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+{% block title %}Registrar Salida de Inventario{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'index' %}" class="btn btn-white text-muted shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Volver al inicio"><i class="fa-solid fa-arrow-left"></i></a>
+        <h2 class="fw-bold text-dark mb-0"><i class="fa-solid fa-arrow-right-from-bracket text-danger me-2"></i>Registrar Salida de Inventario</h2>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'reporte_salidas_pdf' %}" class="btn btn-white text-danger shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" target="_blank" title="Exportar PDF">
+            <i class="fa-solid fa-file-pdf fs-5"></i>
+        </a>
+        <a href="{% url 'exportar_salidas_excel' %}" class="btn btn-white text-success shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Exportar Excel">
+            <i class="fa-solid fa-file-excel fs-5"></i>
+        </a>
+    </div>
+</div>
+{% if user_perms.sal_crear or is_admin %}
+<div class="card shadow-lg border-0 rounded-4 mb-4">
+    <div class="card-body p-4">
+        <form method="post" id="salida-form">
+            {% csrf_token %}
+            <h5 class="fw-bold mb-3 text-primary"><i class="fa-solid fa-circle-plus me-2"></i>Registrar Nueva Salida</h5>
+            <div class="row g-3 mb-4">
+                {% for field in form %}
+                <div class="col-md-4">
+                    <label for="{{ field.id_for_label }}" class="form-label fw-semibold text-muted">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                    <div class="text-danger small mt-1">{{ field.errors }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-list-check me-2 text-danger"></i>Detalles de la Salida</h5>
+            
+            <!-- Custom Add Product Bar (Premium Look) -->
+            <div class="custom-add-container shadow-sm">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-5 d-flex align-items-center gap-2">
+                        <span class="fs-4 text-danger"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <button type="button" id="open-product-search-btn" class="btn btn-outline-danger btn-sm w-100 text-start" style="border-radius: 0.75rem; padding: 0.55rem 0.75rem;">
+                            Seleccionar producto...
+                        </button>
+                        <select id="custom-buscar-producto" class="form-select d-none">
+                            <option value="">Buscar producto...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" id="custom-cantidad" class="form-control form-control-sm" placeholder="*Cantidad" style="border-radius: 0.75rem; padding: 0.4rem 0.75rem;">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" id="custom-add-btn" class="btn btn-outline-danger btn-sm w-100 fw-bold" style="border-radius: 0.75rem; padding: 0.55rem 0.75rem;">
+                            + Agregar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="productoSearchModal" tabindex="-1" aria-labelledby="productoSearchModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content rounded-4 shadow border-0">
+                        <div class="modal-header border-0">
+                            <h5 class="modal-title" id="productoSearchModalLabel">Buscar Producto</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body py-3">
+                            <div class="mb-3">
+                                <input type="text" id="producto-search-input" class="form-control form-control-sm" placeholder="Buscar por nombre">
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th class="text-end">Stock (<span id="proyecto-stock-label">{{ proyecto_stock_label }}</span>)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="producto-search-results"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{ productos_data|json_script:"productos-data" }}
+            {% if is_admin_salida %}
+            {{ bodegas_info_json|json_script:"bodegas-info" }}
+            {{ stocks_por_proyecto_json|json_script:"stocks-por-proyecto" }}
+            {% endif %}
+
+            <!-- Visible Custom Table -->
+            <div class="table-responsive mb-4">
+                <table class="table table-sm align-middle custom-table" id="custom-detalles-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 70%;">Producto</th>
+                            <th style="width: 20%;" class="text-center">Unidades</th>
+                            <th style="width: 10%;" class="text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="custom-detalles-body">
+                        <tr id="custom-empty-placeholder">
+                            <td colspan="3" class="text-center text-muted py-4">Busca, selecciona y agrega los datos del producto en salida.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Hidden Original Django Formset -->
+            <div class="django-formset-container d-none">
+                {{ detalles.management_form }}
+                <table class="table" id="detalles-table">
+                    <tbody id="detalles-body">
+                        {% for detalle_form in detalles %}
+                        <tr class="detalle-form-row">
+                            <td>
+                                {{ detalle_form.id }}
+                                {{ detalle_form.producto }}
+                            </td>
+                            <td>
+                                {{ detalle_form.cantidad }}
+                            </td>
+                            <td>
+                                {{ detalle_form.DELETE }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <button type="button" id="add-detalle">Add</button>
+            </div>
+            
+            <div class="d-flex justify-content-end align-items-center mt-3">
+                <button type="submit" class="btn btn-danger text-white shadow-sm rounded-pill px-5 py-2.5 fw-bold">Guardar Salida</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const addDetalleBtn = document.getElementById("add-detalle");
+        const detallesBody = document.getElementById("detalles-body");
+        const totalForms = document.getElementById("id_detalles-TOTAL_FORMS");
+
+        // Custom UI elements
+        const customBuscarSelect = document.getElementById("custom-buscar-producto");
+        const customCantidadInput = document.getElementById("custom-cantidad");
+        const customAddBtn = document.getElementById("custom-add-btn");
+        const customDetallesBody = document.getElementById("custom-detalles-body");
+        const customEmptyPlaceholder = document.getElementById("custom-empty-placeholder");
+        const openProductSearchBtn = document.getElementById("open-product-search-btn");
+
+        let productOptions = JSON.parse(document.getElementById('productos-data').textContent);
+        const bodegasInfo = document.getElementById('bodegas-info') ? JSON.parse(document.getElementById('bodegas-info').textContent) : null;
+        const stocksPorProyecto = document.getElementById('stocks-por-proyecto') ? JSON.parse(document.getElementById('stocks-por-proyecto').textContent) : null;
+        const proyectoStockLabel = document.getElementById('proyecto-stock-label');
+        const productoSearchInput = document.getElementById("producto-search-input");
+        const productoSearchResults = document.getElementById("producto-search-results");
+        const productoSearchModal = new bootstrap.Modal(document.getElementById("productoSearchModal"));
+
+        function fillHiddenProductSelect() {
+            customBuscarSelect.innerHTML = '<option value="">Buscar producto...</option>';
+            productOptions.forEach(prod => {
+                const option = document.createElement('option');
+                option.value = prod.cod_prod;
+                option.text = prod.nombre;
+                option.dataset.stock = prod.stock_actual;
+                customBuscarSelect.appendChild(option);
+            });
+        }
+
+        fillHiddenProductSelect();
+
+        function resetProductSelection() {
+            customBuscarSelect.value = "";
+            openProductSearchBtn.textContent = "Seleccionar producto...";
+            openProductSearchBtn.classList.remove("btn-primary");
+            openProductSearchBtn.classList.add("btn-outline-danger");
+        }
+
+        function updateProductButtonLabel() {
+            const selectedOption = customBuscarSelect.selectedOptions[0];
+            if (selectedOption && selectedOption.value) {
+                openProductSearchBtn.textContent = selectedOption.text;
+                openProductSearchBtn.classList.remove("btn-outline-danger");
+                openProductSearchBtn.classList.add("btn-danger");
+                return;
+            }
+            resetProductSelection();
+        }
+
+        function populateProductSearchTable(filter = "") {
+            const query = filter.trim().toLowerCase();
+            productoSearchResults.innerHTML = "";
+            let matches = 0;
+
+            productOptions.forEach(prod => {
+                if (!query || prod.nombre.toLowerCase().includes(query)) {
+                    const stockDisp = prod.stock_disponible !== undefined ? prod.stock_disponible : prod.stock_actual;
+                    const stockClass = stockDisp <= 0 ? 'text-danger fw-bold' : (stockDisp <= 5 ? 'text-warning fw-bold' : 'text-end');
+                    const tr = document.createElement("tr");
+                    tr.className = "product-search-row";
+                    tr.dataset.productId = prod.cod_prod;
+                    tr.dataset.productName = prod.nombre;
+                    tr.dataset.productStock = stockDisp;
+                    tr.innerHTML = `<td>${prod.nombre}</td><td class="text-end ${stockClass}">${stockDisp}</td>`;
+                    productoSearchResults.appendChild(tr);
+                    matches += 1;
+                }
+            });
+
+            if (!matches) {
+                productoSearchResults.innerHTML = '<tr><td class="text-center text-muted" colspan="2">No hay productos que coincidan.</td></tr>';
+            }
+        }
+
+        function selectProductFromSearch(productId, productName, productStock) {
+            customBuscarSelect.value = productId;
+            openProductSearchBtn.textContent = `${productName} (Stock: ${productStock})`;
+            openProductSearchBtn.classList.remove("btn-outline-danger");
+            openProductSearchBtn.classList.add("btn-danger");
+
+            if (parseInt(customCantidadInput.value) > 0) {
+                customAddBtn.click();
+            } else {
+                customCantidadInput.focus();
+            }
+        }
+
+        openProductSearchBtn.addEventListener("click", function() {
+            productoSearchInput.value = "";
+            populateProductSearchTable();
+            productoSearchModal.show();
+        });
+
+        productoSearchInput.addEventListener("input", function(e) {
+            populateProductSearchTable(e.target.value);
+        });
+
+        productoSearchResults.addEventListener("dblclick", function(e) {
+            const row = e.target.closest("tr.product-search-row");
+            if (!row) return;
+            selectProductFromSearch(row.dataset.productId, row.dataset.productName, row.dataset.productStock);
+            productoSearchModal.hide();
+        });
+
+        // Function to update the custom table view from the hidden formset
+        function syncHiddenToCustom() {
+            // Retain placeholder reference
+            const placeholder = customEmptyPlaceholder.cloneNode(true);
+            customDetallesBody.innerHTML = "";
+            let hasItems = false;
+            
+            const rows = document.querySelectorAll(".detalle-form-row");
+            rows.forEach((row, index) => {
+                const prodSelect = row.querySelector('select[name$="-producto"]');
+                const cantInput = row.querySelector('input[name$="-cantidad"]');
+                const deleteCheck = row.querySelector('input[name$="-DELETE"]');
+
+                if (prodSelect && cantInput) {
+                    const prodId = prodSelect.value;
+                    const cant = parseFloat(cantInput.value) || 0;
+                    
+                    // Skip if deleted or empty
+                    if (deleteCheck && deleteCheck.checked) return;
+                    if (!prodId) return;
+
+                    hasItems = true;
+                    const prodText = prodSelect.options[prodSelect.selectedIndex].text;
+
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td><strong>${prodText}</strong></td>
+                        <td class="text-center">${cant}</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-action-edit btn-sm me-1" data-index="${index}">Editar</button>
+                            <button type="button" class="btn btn-action-delete btn-sm" data-index="${index}">Eliminar</button>
+                        </td>
+                    `;
+                    customDetallesBody.appendChild(tr);
+                }
+            });
+
+            if (!hasItems) {
+                customDetallesBody.appendChild(placeholder);
+            }
+        }
+
+        // Function to clone templates for new rows
+        const templateRow = document.querySelector(".detalle-form-row").cloneNode(true);
+        function createNewRow(formCount) {
+            const newRow = templateRow.cloneNode(true);
+            newRow.innerHTML = newRow.innerHTML.replace(/-0-/g, `-${formCount}-`);
+            newRow.innerHTML = newRow.innerHTML.replace(/_0_/g, `_${formCount}_`);
+            
+            const inputs = newRow.querySelectorAll("input, select");
+            inputs.forEach(input => {
+                if(input.type !== "hidden" && input.type !== "checkbox"){
+                    input.value = "";
+                }
+                if(input.type === "checkbox") {
+                    input.checked = false;
+                }
+            });
+            return newRow;
+        }
+
+        // Add Product Button click handler
+        customAddBtn.addEventListener("click", function() {
+            const prodId = customBuscarSelect.value;
+            const cant = parseInt(customCantidadInput.value) || 0;
+
+            if (!prodId) {
+                alert("Por favor, seleccione un producto.");
+                return;
+            }
+            if (cant <= 0) {
+                alert("Por favor, ingrese una cantidad mayor a 0.");
+                return;
+            }
+
+            // Validación de stock en tiempo real (client-side)
+            const selectedProd = productOptions.find(p => String(p.cod_prod) === String(prodId));
+            if (selectedProd) {
+                const stockDisp = selectedProd.stock_disponible !== undefined ? selectedProd.stock_disponible : selectedProd.stock_actual;
+                if (cant > stockDisp) {
+                    const confirmMsg = `⚠️ Stock insuficiente: "${selectedProd.nombre}" tiene ${stockDisp} unidades disponibles, pero estás solicitando ${cant}.\n\nEl servidor rechazará este pedido. ¿Deseas continuar de todos modos?`;
+                    if (!confirm(confirmMsg)) return;
+                }
+            }
+
+            // Check if product is already in the list
+            let existingRow = null;
+            const rows = document.querySelectorAll(".detalle-form-row");
+            rows.forEach((row) => {
+                const prodSelect = row.querySelector('select[name$="-producto"]');
+                const deleteCheck = row.querySelector('input[name$="-DELETE"]');
+                if (prodSelect && prodSelect.value === prodId && (!deleteCheck || !deleteCheck.checked)) {
+                    existingRow = row;
+                }
+            });
+
+            if (existingRow) {
+                // Update existing row
+                const cantInput = existingRow.querySelector('input[name$="-cantidad"]');
+                cantInput.value = cant;
+            } else {
+                // Find first empty formset row or create a new one
+                let targetRow = null;
+                rows.forEach((row) => {
+                    const prodSelect = row.querySelector('select[name$="-producto"]');
+                    const deleteCheck = row.querySelector('input[name$="-DELETE"]');
+                    if (prodSelect && !prodSelect.value && (!deleteCheck || !deleteCheck.checked)) {
+                        targetRow = row;
+                    }
+                });
+
+                if (!targetRow) {
+                    const formCount = parseInt(totalForms.value);
+                    targetRow = createNewRow(formCount);
+                    detallesBody.appendChild(targetRow);
+                    totalForms.value = formCount + 1;
+                }
+
+                const prodSelect = targetRow.querySelector('select[name$="-producto"]');
+                const cantInput = targetRow.querySelector('input[name$="-cantidad"]');
+
+                prodSelect.value = prodId;
+                cantInput.value = cant;
+            }
+
+            // Reset custom inputs
+            customBuscarSelect.value = "";
+            customCantidadInput.value = "";
+
+            syncHiddenToCustom();
+        });
+
+        // Event delegation for Edit and Delete buttons in custom table
+        customDetallesBody.addEventListener("click", function(e) {
+            if (e.target.classList.contains("btn-action-edit")) {
+                const index = e.target.dataset.index;
+                const row = document.querySelectorAll(".detalle-form-row")[index];
+                const prodSelect = row.querySelector('select[name$="-producto"]');
+                const cantInput = row.querySelector('input[name$="-cantidad"]');
+
+                if (prodSelect && cantInput) {
+                    customBuscarSelect.value = prodSelect.value;
+                    customCantidadInput.value = cantInput.value;
+
+                    // Clear this row from formset
+                    prodSelect.value = "";
+                    cantInput.value = "";
+                }
+                syncHiddenToCustom();
+            }
+
+            if (e.target.classList.contains("btn-action-delete")) {
+                const index = e.target.dataset.index;
+                const row = document.querySelectorAll(".detalle-form-row")[index];
+                const deleteCheck = row.querySelector('input[name$="-DELETE"]');
+                
+                if (deleteCheck) {
+                    deleteCheck.checked = true;
+                } else {
+                    const prodSelect = row.querySelector('select[name$="-producto"]');
+                    const cantInput = row.querySelector('input[name$="-cantidad"]');
+                    if (prodSelect) prodSelect.value = "";
+                    if (cantInput) cantInput.value = "";
+                }
+                syncHiddenToCustom();
+            }
+        });
+
+        // Initial Sync
+        syncHiddenToCustom();
+
+        // Admin: actualizar stock al cambiar bodega
+        if (bodegasInfo && stocksPorProyecto) {
+            const bodegaSelect = document.getElementById('id_bodega_salida');
+            if (bodegaSelect) {
+                function actualizarStockPorBodega(bodegaId) {
+                    if (!bodegaId) {
+                        productOptions.forEach(p => { p.stock_disponible = p.stock_actual; });
+                        if (proyectoStockLabel) proyectoStockLabel.textContent = 'Global';
+                        return;
+                    }
+                    const bodega = bodegasInfo.find(b => String(b.id) === String(bodegaId));
+                    if (!bodega) return;
+                    const stocks = stocksPorProyecto[String(bodega.proyecto_id)] || {};
+                    productOptions.forEach(p => {
+                        p.stock_disponible = stocks[String(p.cod_prod)] !== undefined ? stocks[String(p.cod_prod)] : 0;
+                    });
+                    if (proyectoStockLabel) proyectoStockLabel.textContent = bodega.proyecto_nombre;
+                    fillHiddenProductSelect();
+                }
+                bodegaSelect.addEventListener('change', function() {
+                    actualizarStockPorBodega(this.value);
+                });
+                // Si ya viene seleccionada al cargar (re-render por error)
+                if (bodegaSelect.value) actualizarStockPorBodega(bodegaSelect.value);
+            }
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}
