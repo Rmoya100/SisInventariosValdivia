@@ -178,7 +178,7 @@
                     <tr>
                         <td>{{ ingreso.numIngreso }}</td>
                         <td>{{ ingreso.fecha }}</td>
-                        <td>{{ ingreso.orden_compra }}</td>
+                        <td>{{ ingreso.orden_compra|default:"Sin OC" }}</td>
                         <td>{{ ingreso.tipo_documento }}</td>
                         <td>{{ ingreso.num_documento }}</td>
                         <td>{{ ingreso.proyecto }}</td>
@@ -448,6 +448,9 @@ document.addEventListener("DOMContentLoaded", function () {
     // Render inicial
     render();
     updateAddBarVisibility();
+
+    // Foco en tipo de documento al cargar (el redirect tras guardar deja el form vacío)
+    document.getElementById("id_tipo_documento")?.focus();
 });
 </script>
 {% endblock %}
