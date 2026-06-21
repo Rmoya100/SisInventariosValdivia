@@ -52,24 +52,84 @@
             {{ productos_data|json_script:"productos-data" }}
 
             {# Tabla visible para el usuario #}
-            <div class="table-responsive mb-4">
+            <div class="table-responsive mb-2">
                 <table class="table table-sm align-middle" id="custom-detalles-table">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 45%;">Producto</th>
-                            <th style="width: 20%;" class="text-center">Cant. a Recepcionar</th>
+                            <th style="width: 40%;">Producto</th>
+                            <th style="width: 18%;" class="text-center">Cant. a Recepcionar</th>
                             <th style="width: 15%;" class="text-end">Costo Unitario</th>
-                            <th style="width: 20%;" class="text-end">Subtotal</th>
+                            <th style="width: 18%;" class="text-end">Subtotal</th>
+                            <th style="width: 9%;" class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="custom-detalles-body">
                         <tr id="custom-empty-row">
-                            <td colspan="4" class="text-center text-muted py-4">
+                            <td colspan="5" class="text-center text-muted py-4">
                                 <i class="fa-solid fa-circle-info me-2"></i>Seleccione una Orden de Compra para cargar sus productos.
                             </td>
                         </tr>
                     </tbody>
                 </table>
+            </div>
+
+            {# Barra de agregar producto manual — visible solo cuando no hay OC seleccionada #}
+            <div id="add-product-bar" class="shadow-sm border rounded-3 p-3 d-none mb-3" style="background:#f8fafc;">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-4 d-flex align-items-center gap-2">
+                        <span class="fs-4 text-info"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <button type="button" id="ing-open-search-btn"
+                                class="btn btn-outline-secondary btn-sm w-100 text-start"
+                                style="border-radius:0.75rem; padding:0.55rem 0.75rem;">
+                            Seleccionar producto...
+                        </button>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" id="ing-cantidad" class="form-control form-control-sm"
+                               placeholder="*Cantidad" style="border-radius:0.75rem;" min="1">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" id="ing-precio" class="form-control form-control-sm"
+                               placeholder="Costo unitario" step="1" style="border-radius:0.75rem;" min="0">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" id="ing-add-btn"
+                                class="btn btn-outline-info btn-sm w-100 fw-bold"
+                                style="border-radius:0.75rem;">
+                            + Agregar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {# Modal de búsqueda de productos #}
+            <div class="modal fade" id="ingProductoSearchModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Buscar Producto</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <input type="text" id="ing-search-input" class="form-control form-control-sm"
+                                       placeholder="Filtrar por nombre..." autocomplete="off">
+                            </div>
+                            <div class="table-responsive" style="max-height:380px; overflow-y:auto;">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr><th>Producto</th><th class="text-end">Stock</th></tr>
+                                    </thead>
+                                    <tbody id="ing-search-results"></tbody>
+                                </table>
+                            </div>
+                            <div class="small text-muted mt-2">Doble clic en el producto para seleccionarlo.</div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {# Formset Django oculto — aquí se construyen los campos reales que se envían al servidor #}
@@ -144,7 +204,17 @@ document.addEventListener("DOMContentLoaded", function () {
     const totalFormsInput   = document.getElementById("id_detalles-TOTAL_FORMS");
     const btnGuardar        = document.getElementById("btn-guardar-ingreso");
 
-    // Mapa producto_id → nombre
+    // Barra y modal de búsqueda manual
+    const addProductBar    = document.getElementById("add-product-bar");
+    const ingOpenSearchBtn = document.getElementById("ing-open-search-btn");
+    const ingCantidadInput = document.getElementById("ing-cantidad");
+    const ingPrecioInput   = document.getElementById("ing-precio");
+    const ingAddBtn        = document.getElementById("ing-add-btn");
+    const ingSearchInput   = document.getElementById("ing-search-input");
+    const ingSearchResults = document.getElementById("ing-search-results");
+    const ingModal         = new bootstrap.Modal(document.getElementById("ingProductoSearchModal"));
+
+    // Datos de productos
     const productosData = JSON.parse(document.getElementById("productos-data").textContent);
     const productMap = {};
     productosData.forEach(p => { productMap[p.cod_prod] = p.nombre; });
@@ -152,22 +222,31 @@ document.addEventListener("DOMContentLoaded", function () {
     // Formateador de moneda
     const fmt = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 0 });
 
-    // Estado interno: lista de { producto_id, nombre, cantidad, precio }
+    // Estado interno
     let detallesData = [];
+    let selectedProductId   = null;
+    let selectedProductName = null;
 
-    // ── Funciones ──────────────────────────────────────────────────────────
+    // ── Visibilidad de la barra de agregar ────────────────────────────────
+    function updateAddBarVisibility() {
+        const sinOC = !ordenCompraSelect.value;
+        addProductBar.classList.toggle("d-none", !sinOC);
+    }
 
-    /** Renderiza la tabla visible y reconstruye el formset oculto */
+    // ── Render ─────────────────────────────────────────────────────────────
     function render() {
-        // Limpiar tabla visible
         customBody.innerHTML = "";
 
         if (detallesData.length === 0) {
+            const sinOC = !ordenCompraSelect.value;
+            emptyRow.querySelector("td").innerHTML = sinOC
+                ? '<i class="fa-solid fa-magnifying-glass me-2"></i>Use la barra de abajo para buscar y agregar productos manualmente.'
+                : '<i class="fa-solid fa-circle-info me-2"></i>Seleccione una Orden de Compra para cargar sus productos.';
             customBody.appendChild(emptyRow);
             btnGuardar.disabled = true;
             totalFormsInput.value = 0;
-            // Limpiar filas ocultas del formset (excepto management_form)
             syncFormset();
+            updateAddBarVisibility();
             return;
         }
 
@@ -188,27 +267,29 @@ document.addEventListener("DOMContentLoaded", function () {
                 </td>
                 <td class="text-end">${fmt.format(item.precio)}</td>
                 <td class="text-end fw-bold text-info subtotal-cell" id="subtotal-${index}">${fmt.format(subtotal)}</td>
+                <td class="text-center">
+                    <button type="button"
+                            class="btn btn-sm btn-outline-danger rounded-circle eliminar-detalle"
+                            data-index="${index}" title="Eliminar fila">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </td>
             `;
             customBody.appendChild(tr);
         });
 
         syncFormset();
+        updateAddBarVisibility();
     }
 
-    /** Reconstruye los inputs ocultos del formset según detallesData */
+    // ── Sync formset oculto ────────────────────────────────────────────────
     function syncFormset() {
-        // Eliminar filas previas (no el management_form)
-        const oldRows = formsetContainer.querySelectorAll(".formset-row");
-        oldRows.forEach(r => r.remove());
-
+        formsetContainer.querySelectorAll(".formset-row").forEach(r => r.remove());
         totalFormsInput.value = detallesData.length;
-
         detallesData.forEach(function (item, index) {
             const prefix = "detalles";
             const div = document.createElement("div");
             div.className = "formset-row";
-
-            // id (vacío = nueva fila)
             div.innerHTML = `
                 <input type="hidden" name="${prefix}-${index}-id"       value="">
                 <input type="hidden" name="${prefix}-${index}-producto"  value="${item.producto_id}">
@@ -220,21 +301,91 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // ── Modal de búsqueda de productos ────────────────────────────────────
+    function populateSearchTable(filter = "") {
+        const query = filter.trim().toLowerCase();
+        ingSearchResults.innerHTML = "";
+        let count = 0;
+        productosData.forEach(prod => {
+            if (!query || prod.nombre.toLowerCase().includes(query)) {
+                const tr = document.createElement("tr");
+                tr.className = "ing-product-row";
+                tr.dataset.productId    = prod.cod_prod;
+                tr.dataset.productName  = prod.nombre;
+                tr.dataset.productStock = prod.stock_actual;
+                tr.innerHTML = `<td>${prod.nombre}</td><td class="text-end">${prod.stock_actual}</td>`;
+                ingSearchResults.appendChild(tr);
+                count++;
+            }
+        });
+        if (!count) {
+            ingSearchResults.innerHTML =
+                '<tr><td colspan="2" class="text-center text-muted py-3">No hay productos que coincidan.</td></tr>';
+        }
+    }
+
+    ingOpenSearchBtn.addEventListener("click", function () {
+        ingSearchInput.value = "";
+        populateSearchTable();
+        ingModal.show();
+    });
+
+    ingSearchInput.addEventListener("input", e => populateSearchTable(e.target.value));
+
+    ingSearchResults.addEventListener("dblclick", function (e) {
+        const row = e.target.closest("tr.ing-product-row");
+        if (!row) return;
+        selectedProductId   = row.dataset.productId;
+        selectedProductName = row.dataset.productName;
+        ingOpenSearchBtn.textContent = `${selectedProductName} (Stock: ${row.dataset.productStock})`;
+        ingOpenSearchBtn.classList.replace("btn-outline-secondary", "btn-outline-info");
+        ingModal.hide();
+        ingCantidadInput.focus();
+    });
+
+    ingAddBtn.addEventListener("click", function () {
+        const cantidad = parseFloat(ingCantidadInput.value) || 0;
+        const precio   = parseFloat(ingPrecioInput.value)   || 0;
+
+        if (!selectedProductId) {
+            ingOpenSearchBtn.classList.add("border-danger");
+            return;
+        }
+        if (cantidad <= 0) {
+            ingCantidadInput.classList.add("is-invalid");
+            return;
+        }
+
+        detallesData.push({ producto_id: selectedProductId, nombre: selectedProductName, cantidad, precio });
+
+        // Resetear barra
+        selectedProductId   = null;
+        selectedProductName = null;
+        ingOpenSearchBtn.textContent = "Seleccionar producto...";
+        ingOpenSearchBtn.classList.replace("btn-outline-info", "btn-outline-secondary");
+        ingOpenSearchBtn.classList.remove("border-danger");
+        ingCantidadInput.value = "";
+        ingPrecioInput.value   = "";
+        ingCantidadInput.classList.remove("is-invalid");
+
+        render();
+    });
+
     // ── Event: cambio en select de OC ─────────────────────────────────────
     if (ordenCompraSelect) {
         ordenCompraSelect.addEventListener("change", function () {
             const ordenId = this.value;
+
             if (!ordenId) {
                 detallesData = [];
                 render();
                 return;
             }
 
-            // Llamada al endpoint — la URL base se inyecta desde Django
+            updateAddBarVisibility();
+
             const urlBase = "{% url 'orden_compra_detalle' orden_id=0 %}".replace('/0/', '/' + ordenId + '/');
-            fetch(urlBase, {
-                headers: { "X-Requested-With": "XMLHttpRequest" }
-            })
+            fetch(urlBase, { headers: { "X-Requested-With": "XMLHttpRequest" } })
             .then(function (response) {
                 if (!response.ok) throw new Error("Error HTTP: " + response.status);
                 return response.json();
@@ -243,18 +394,15 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (!Array.isArray(data) || data.length === 0) {
                     detallesData = [];
                     render();
-                    // Alerta amigable
                     customBody.innerHTML = "";
                     const tr = document.createElement("tr");
-                    tr.innerHTML = '<td colspan="4" class="text-center text-warning py-3"><i class="fa-solid fa-triangle-exclamation me-2"></i>Esta OC no tiene productos en su detalle.</td>';
+                    tr.innerHTML = '<td colspan="5" class="text-center text-warning py-3"><i class="fa-solid fa-triangle-exclamation me-2"></i>Esta OC no tiene productos pendientes de recepción.</td>';
                     customBody.appendChild(tr);
                     return;
                 }
-
                 detallesData = data.map(function (d) {
                     return {
                         producto_id: d.producto_id,
-                        // Usar el nombre que ya viene en el JSON (más confiable)
                         nombre:      d.nombre || productMap[d.producto_id] || ("Producto #" + d.producto_id),
                         cantidad:    d.cantidad,
                         precio:      d.precio
@@ -266,7 +414,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 console.error("Error al cargar detalle de OC:", err);
                 customBody.innerHTML = "";
                 const tr = document.createElement("tr");
-                tr.innerHTML = '<td colspan="4" class="text-center text-danger py-3"><i class="fa-solid fa-circle-xmark me-2"></i>Error al cargar el detalle. Intente nuevamente.</td>';
+                tr.innerHTML = '<td colspan="5" class="text-center text-danger py-3"><i class="fa-solid fa-circle-xmark me-2"></i>Error al cargar el detalle. Intente nuevamente.</td>';
                 customBody.appendChild(tr);
             });
         });
@@ -275,26 +423,31 @@ document.addEventListener("DOMContentLoaded", function () {
     // ── Event: edición de cantidad en tabla visible ────────────────────────
     customBody.addEventListener("input", function (e) {
         if (!e.target.classList.contains("custom-qty-input")) return;
-        const index   = parseInt(e.target.dataset.index, 10);
-        const newQty  = parseFloat(e.target.value) || 0;
-
+        const index  = parseInt(e.target.dataset.index, 10);
+        const newQty = parseFloat(e.target.value) || 0;
         if (detallesData[index] !== undefined) {
             detallesData[index].cantidad = newQty;
-
-            // Actualizar subtotal visible
             const subtotalCell = document.getElementById("subtotal-" + index);
-            if (subtotalCell) {
-                subtotalCell.textContent = fmt.format(newQty * detallesData[index].precio);
-            }
-
-            // Actualizar campo oculto del formset
+            if (subtotalCell) subtotalCell.textContent = fmt.format(newQty * detallesData[index].precio);
             const hiddenQty = formsetContainer.querySelector(`.hidden-cantidad[data-index="${index}"]`);
             if (hiddenQty) hiddenQty.value = newQty;
         }
     });
 
+    // ── Event: eliminar fila ───────────────────────────────────────────────
+    customBody.addEventListener("click", function (e) {
+        const btn = e.target.closest(".eliminar-detalle");
+        if (!btn) return;
+        const index = parseInt(btn.dataset.index, 10);
+        if (!isNaN(index)) {
+            detallesData.splice(index, 1);
+            render();
+        }
+    });
+
     // Render inicial
     render();
+    updateAddBarVisibility();
 });
 </script>
 {% endblock %}
