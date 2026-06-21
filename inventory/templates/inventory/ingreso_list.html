@@ -36,6 +36,7 @@
             <h5 class="fw-bold mb-3 text-primary"><i class="fa-solid fa-circle-plus me-2"></i>Registrar Nuevo Ingreso</h5>
             <div class="row g-3 mb-4">
                 {% for field in form %}
+                {% if field.html_name != 'bodega' %}
                 <div class="col-md-3">
                     <label for="{{ field.id_for_label }}" class="form-label fw-semibold text-muted">{{ field.label }}</label>
                     {{ field }}
@@ -43,7 +44,17 @@
                     <div class="text-danger small mt-1">{{ field.errors }}</div>
                     {% endif %}
                 </div>
+                {% endif %}
                 {% endfor %}
+                {% if request.user.es_admin %}
+                <div class="col-md-3" id="bodega-field-container" style="display:none;">
+                    <label for="id_bodega" class="form-label fw-semibold text-muted">{{ form.bodega.label }}</label>
+                    {{ form.bodega }}
+                    {% if form.bodega.errors %}
+                    <div class="text-danger small mt-1">{{ form.bodega.errors }}</div>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
 
             <h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-list-check me-2 text-info"></i>Detalle del Ingreso</h5>
@@ -231,6 +242,14 @@ document.addEventListener("DOMContentLoaded", function () {
     function updateAddBarVisibility() {
         const sinOC = !ordenCompraSelect.value;
         addProductBar.classList.toggle("d-none", !sinOC);
+        const bodegaContainer = document.getElementById("bodega-field-container");
+        if (bodegaContainer) {
+            bodegaContainer.style.display = sinOC ? "" : "none";
+            if (!sinOC) {
+                const sel = document.getElementById("id_bodega");
+                if (sel) sel.value = "";
+            }
+        }
     }
 
     // ── Render ─────────────────────────────────────────────────────────────

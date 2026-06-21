@@ -402,10 +402,20 @@ class IngresoForm(UppercaseMixin, forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         self.fields['orden_compra'].queryset = OrdenCompra.objects.filter(
             estado__in=['PENDIENTE', 'RECEPCION PARCIAL']
         )
+        if _es_admin(self.user):
+            self.fields['bodega'] = BodegaChoiceField(
+                queryset=Bodega.objects.filter(activo=True, proyecto__isnull=False)
+                    .select_related('proyecto').order_by('proyecto__nombre', 'nombre'),
+                widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_bodega'}),
+                label='Bodega de Destino',
+                empty_label='— Seleccionar Bodega —',
+                required=False,
+            )
 
 
 class DetalleCompraForm(UppercaseMixin, forms.ModelForm):

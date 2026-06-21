@@ -193,6 +193,11 @@ class IngresoView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     template_name = 'inventory/ingreso_list.html'
     success_url = reverse_lazy('ingresos')
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
     def get_queryset(self):
         qs = Ingreso.objects.all().select_related('orden_compra__proveedor')
         if self.request.user.proyecto and not self.request.user.es_admin:
@@ -228,6 +233,13 @@ class IngresoView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         orden_compra = form.cleaned_data.get('orden_compra')
         proyecto = (orden_compra.proyecto if orden_compra and orden_compra.proyecto_id else None) or self.request.user.get_proyecto_movimiento()
         bodega = (orden_compra.bodega if orden_compra and orden_compra.bodega_id else None)
+        if not bodega and not orden_compra and self.request.user.es_admin:
+            bodega = form.cleaned_data.get('bodega')
+            if not bodega:
+                messages.error(self.request, 'Debe seleccionar una bodega de destino.')
+                return self.render_to_response(self.get_context_data(form=form))
+            if not proyecto and bodega:
+                proyecto = bodega.proyecto
         if not bodega and proyecto:
             bodega = proyecto.bodegas.filter(activo=True).order_by('pk').first()
 
