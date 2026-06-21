@@ -182,6 +182,7 @@
                         <th>Tipo Doc.</th>
                         <th>N° Doc.</th>
                         <th>Proyecto</th>
+                        <th class="text-center">PDF</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -193,6 +194,14 @@
                         <td>{{ ingreso.tipo_documento }}</td>
                         <td>{{ ingreso.num_documento }}</td>
                         <td>{{ ingreso.proyecto }}</td>
+                        <td class="text-center">
+                            <a href="{% url 'reporte_ingreso_detail_pdf' pk=ingreso.numIngreso %}"
+                               target="_blank"
+                               class="btn btn-sm btn-outline-danger rounded-circle"
+                               title="Ver PDF del ingreso #{{ ingreso.numIngreso }}">
+                                <i class="fa-solid fa-file-pdf"></i>
+                            </a>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
