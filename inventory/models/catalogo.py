@@ -51,6 +51,9 @@ class Categoria(models.Model):
     def __str__(self):
         return self.nombre
 
+    class Meta:
+        ordering = ['nombre']
+
 
 class Producto(models.Model):
     cod_prod = models.AutoField(primary_key=True)
