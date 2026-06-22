@@ -63,8 +63,8 @@ class Producto(models.Model):
         related_name='productos', verbose_name='Unidad de Medida'
     )
     nombre = models.CharField(max_length=255, unique=True)
-    stock_inicial = models.IntegerField(default=0)
-    stock_actual = models.IntegerField(default=0)
+    stock_inicial = models.DecimalField(max_digits=10, decimal_places=3, default=0)
+    stock_actual = models.DecimalField(max_digits=10, decimal_places=3, default=0)
     activo = models.BooleanField(default=True)
 
     objects = ActiveManager()
@@ -94,7 +94,7 @@ class Producto(models.Model):
 class StockProyecto(models.Model):
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='stocks_proyecto')
     proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='inventario')
-    cantidad = models.IntegerField(default=0)
+    cantidad = models.DecimalField(max_digits=10, decimal_places=3, default=0)
 
     class Meta:
         unique_together = ('producto', 'proyecto')

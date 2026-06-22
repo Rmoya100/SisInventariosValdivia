@@ -183,7 +183,7 @@ class ProductoForm(UppercaseMixin, forms.ModelForm):
             'categoria': forms.Select(attrs={'class': 'form-select'}),
             'unidad_medida': forms.Select(attrs={'class': 'form-select'}),
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
-            'stock_inicial': forms.NumberInput(attrs={'class': 'form-control'}),
+            'stock_inicial': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001', 'min': '0'}),
         }
         labels = {
             'unidad_medida': 'Unidad de Medida',
@@ -444,7 +444,7 @@ class DetalleSalidaForm(UppercaseMixin, forms.ModelForm):
         fields = ['producto', 'cantidad']
         widgets = {
             'producto': forms.Select(attrs={'class': 'form-select'}),
-            'cantidad': forms.NumberInput(attrs={'class': 'form-control'}),
+            'cantidad': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.001', 'min': '0.001'}),
         }
 
 class TransferenciaForm(UppercaseMixin, forms.ModelForm):

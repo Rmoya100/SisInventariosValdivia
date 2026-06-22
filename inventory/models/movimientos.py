@@ -84,7 +84,7 @@ class DetalleSalida(models.Model):
     idDetalle = models.AutoField(primary_key=True)
     salida = models.ForeignKey(Salida, on_delete=models.CASCADE, related_name='detalles')
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-    cantidad = models.IntegerField()
+    cantidad = models.DecimalField(max_digits=10, decimal_places=3)
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None

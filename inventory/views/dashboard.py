@@ -20,11 +20,11 @@ def index(request):
 
     if proyecto and not request.user.es_admin:
         stock_qs = StockProyecto.objects.filter(proyecto=proyecto, producto__activo=True)
-        total_inventario_val = sum(sp.cantidad * precios_dict.get(sp.producto_id, 0) for sp in stock_qs)
+        total_inventario_val = sum(float(sp.cantidad) * precios_dict.get(sp.producto_id, 0) for sp in stock_qs)
         total_productos_inv = sum(sp.cantidad for sp in stock_qs)
     else:
         stock_qs = Producto.objects.filter(activo=True)
-        total_inventario_val = sum(p.stock_actual * precios_dict.get(p.cod_prod, 0) for p in stock_qs)
+        total_inventario_val = sum(float(p.stock_actual) * precios_dict.get(p.cod_prod, 0) for p in stock_qs)
         total_productos_inv = sum(p.stock_actual for p in stock_qs)
 
     ingresos_qs = DetalleIngreso.objects.all()
@@ -38,7 +38,7 @@ def index(request):
     if proyecto and not request.user.es_admin:
         salidas_qs = salidas_qs.filter(salida__proyecto=proyecto)
     
-    total_salidas_val = sum(d.cantidad * precios_dict.get(d.producto_id, 0) for d in salidas_qs)
+    total_salidas_val = sum(float(d.cantidad) * precios_dict.get(d.producto_id, 0) for d in salidas_qs)
     total_productos_sal = salidas_qs.aggregate(total=Sum('cantidad'))['total'] or 0
 
     transf_qs = DetalleTransferencia.objects.select_related('transferencia')
@@ -99,7 +99,7 @@ def dashboard_graficos(request):
     for d in detalles:
         precio = precios_dict.get(d.producto_id, 0)
         modulo_nombre = str(d.salida.modulo_torre) if d.salida.modulo_torre else 'Sin Modulo'
-        valor_por_modulo[modulo_nombre] += d.cantidad * precio
+        valor_por_modulo[modulo_nombre] += float(d.cantidad) * precio
     
     modulos_labels = list(valor_por_modulo.keys())
     modulos_valores = list(valor_por_modulo.values())
