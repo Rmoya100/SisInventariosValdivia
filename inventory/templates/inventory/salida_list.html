@@ -227,7 +227,7 @@
             openProductSearchBtn.classList.remove("btn-outline-danger");
             openProductSearchBtn.classList.add("btn-danger");
 
-            if (parseInt(customCantidadInput.value) > 0) {
+            if (parseFloat(customCantidadInput.value) > 0) {
                 customAddBtn.click();
             } else {
                 customCantidadInput.focus();
@@ -315,7 +315,7 @@
         // Add Product Button click handler
         customAddBtn.addEventListener("click", function() {
             const prodId = customBuscarSelect.value;
-            const cant = parseInt(customCantidadInput.value) || 0;
+            const cant = parseFloat(customCantidadInput.value) || 0;
 
             if (!prodId) {
                 alert("Por favor, seleccione un producto.");
