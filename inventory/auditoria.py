@@ -1,7 +1,20 @@
+import json
 import logging
+from decimal import Decimal
 from .models import HistorialMovimiento
 
 logger = logging.getLogger(__name__)
+
+
+def _serializable(datos):
+    """Convert Decimal (and other non-JSON-native types) to float recursively."""
+    if isinstance(datos, dict):
+        return {k: _serializable(v) for k, v in datos.items()}
+    if isinstance(datos, (list, tuple)):
+        return [_serializable(v) for v in datos]
+    if isinstance(datos, Decimal):
+        return float(datos)
+    return datos
 
 
 def registrar(usuario, tipo_accion, objeto_id, modulo, accion, datos=None, bodega=None):
@@ -16,7 +29,7 @@ def registrar(usuario, tipo_accion, objeto_id, modulo, accion, datos=None, bodeg
             objeto_id=objeto_id,
             modulo=modulo,
             accion=accion,
-            datos=datos or {},
+            datos=_serializable(datos or {}),
             bodega=bodega,
         )
     except Exception:
