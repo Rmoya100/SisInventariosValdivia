@@ -62,6 +62,7 @@ urlpatterns = [
     path('ordenes/<int:pk>/editar/', views.OrdenCompraUpdateView.as_view(), name='orden_compra_editar'),
     path('salidas/', views.SalidaView.as_view(), name='salidas'),
     path('ingresos/', views.IngresoView.as_view(), name='ingresos'),
+    path('ingresos/<int:pk>/editar/', views.IngresoUpdateView.as_view(), name='ingreso_editar'),
     path('ordenes/<int:orden_id>/detalle/', views.get_orden_compra_detalle, name='orden_compra_detalle'),
     
     # Reportes PDF

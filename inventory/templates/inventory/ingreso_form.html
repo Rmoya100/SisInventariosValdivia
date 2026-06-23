@@ -1,19 +1,11 @@
 {% extends 'inventory/base.html' %}
 {% load static %}
-{% block title %}Ingresos de Inventario{% endblock %}
+{% block title %}Editar Ingreso #{{ object.numIngreso }}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div class="d-flex align-items-center gap-3">
-        <a href="{% url 'index' %}" class="btn btn-white text-muted shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Volver al inicio"><i class="fa-solid fa-arrow-left"></i></a>
-        <h2 class="fw-bold text-dark mb-0"><i class="fa-solid fa-arrow-right-to-bracket text-info me-2"></i>Ingresos de Inventario</h2>
-    </div>
-    <div class="d-flex gap-2">
-        <a href="{% url 'reporte_ingresos_pdf' %}" class="btn btn-white text-danger shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" target="_blank" title="Exportar PDF">
-            <i class="fa-solid fa-file-pdf fs-5"></i>
-        </a>
-        <a href="{% url 'exportar_ingresos_excel' %}" class="btn btn-white text-success shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Exportar Excel">
-            <i class="fa-solid fa-file-excel fs-5"></i>
-        </a>
+        <a href="{% url 'ingresos' %}" class="btn btn-white text-muted shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Volver a ingresos"><i class="fa-solid fa-arrow-left"></i></a>
+        <h2 class="fw-bold text-dark mb-0"><i class="fa-solid fa-pen-to-square text-warning me-2"></i>Editar Ingreso #{{ object.numIngreso }}</h2>
     </div>
 </div>
 
@@ -28,12 +20,11 @@
 </div>
 {% endif %}
 
-{% if user_perms.ing_crear or is_admin %}
 <div class="card shadow-lg border-0 rounded-4 mb-4">
     <div class="card-body p-4">
         <form method="post" id="ingreso-form">
             {% csrf_token %}
-            <h5 class="fw-bold mb-3 text-primary"><i class="fa-solid fa-circle-plus me-2"></i>Registrar Nuevo Ingreso</h5>
+            <h5 class="fw-bold mb-3 text-warning"><i class="fa-solid fa-circle-info me-2"></i>Datos del Ingreso</h5>
             <div class="row g-3 mb-4">
                 {% for field in form %}
                 {% if field.html_name != 'bodega' %}
@@ -46,29 +37,19 @@
                 </div>
                 {% endif %}
                 {% endfor %}
-                {% if request.user.es_admin %}
-                <div class="col-md-3" id="bodega-field-container" style="display:none;">
-                    <label for="id_bodega" class="form-label fw-semibold text-muted">{{ form.bodega.label }}</label>
-                    {{ form.bodega }}
-                    {% if form.bodega.errors %}
-                    <div class="text-danger small mt-1">{{ form.bodega.errors }}</div>
-                    {% endif %}
-                </div>
-                {% endif %}
             </div>
 
             <h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-list-check me-2 text-info"></i>Detalle del Ingreso</h5>
 
-            {# Pasar la lista de productos a JS para mapear ID → nombre #}
             {{ productos_data|json_script:"productos-data" }}
+            {{ detalles_iniciales_json|json_script:"detalles-iniciales-data" }}
 
-            {# Tabla visible para el usuario #}
             <div class="table-responsive mb-2">
                 <table class="table table-sm align-middle" id="custom-detalles-table">
                     <thead class="table-light">
                         <tr>
                             <th style="width: 40%;">Producto</th>
-                            <th style="width: 18%;" class="text-center">Cant. a Recepcionar</th>
+                            <th style="width: 18%;" class="text-center">Cantidad</th>
                             <th style="width: 15%;" class="text-end">Costo Unitario</th>
                             <th style="width: 18%;" class="text-end">Subtotal</th>
                             <th style="width: 9%;" class="text-center">Acciones</th>
@@ -77,14 +58,14 @@
                     <tbody id="custom-detalles-body">
                         <tr id="custom-empty-row">
                             <td colspan="5" class="text-center text-muted py-4">
-                                <i class="fa-solid fa-circle-info me-2"></i>Seleccione una Orden de Compra para cargar sus productos.
+                                <i class="fa-solid fa-magnifying-glass me-2"></i>Use la barra de abajo para buscar y agregar productos.
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            {# Barra de agregar producto manual — visible solo cuando no hay OC seleccionada #}
+            {# Barra de agregar producto manual #}
             <div id="add-product-bar" class="shadow-sm border rounded-3 p-3 d-none mb-3" style="background:#f8fafc;">
                 <div class="row g-2 align-items-center">
                     <div class="col-md-4 d-flex align-items-center gap-2">
@@ -143,89 +124,28 @@
                 </div>
             </div>
 
-            {# Formset Django oculto — aquí se construyen los campos reales que se envían al servidor #}
+            {# Contenedor del formset manual — campos enviados al servidor #}
             <div class="d-none" id="django-formset-container">
-                {{ detalles.management_form }}
-                {# Las filas se generan dinámicamente por JS; el management form es suficiente #}
+                <input type="hidden" name="detalles-TOTAL_FORMS"   id="id_detalles-TOTAL_FORMS"   value="0">
+                <input type="hidden" name="detalles-INITIAL_FORMS" id="id_detalles-INITIAL_FORMS" value="0">
+                <input type="hidden" name="detalles-MIN_NUM_FORMS" id="id_detalles-MIN_NUM_FORMS" value="0">
+                <input type="hidden" name="detalles-MAX_NUM_FORMS" id="id_detalles-MAX_NUM_FORMS" value="1000">
             </div>
 
-            <div class="d-flex justify-content-end align-items-center mt-3">
-                <button type="submit" id="btn-guardar-ingreso" class="btn btn-info text-white shadow-sm rounded-pill px-5 fw-bold" disabled>
-                    <i class="fa-solid fa-floppy-disk me-2"></i>Guardar Ingreso
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <a href="{% url 'ingresos' %}" class="btn btn-outline-secondary rounded-pill px-4">
+                    <i class="fa-solid fa-xmark me-2"></i>Cancelar
+                </a>
+                <button type="submit" id="btn-guardar-ingreso" class="btn btn-warning text-white shadow-sm rounded-pill px-5 fw-bold" disabled>
+                    <i class="fa-solid fa-floppy-disk me-2"></i>Guardar Cambios
                 </button>
             </div>
         </form>
     </div>
 </div>
-{% endif %}
-
-{# Lista de ingresos existentes #}
-<div class="card shadow-sm border-0 rounded-4">
-    <div class="card-body p-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-history me-2 text-info"></i>Ingresos Registrados</h5>
-            <form method="get" class="d-flex gap-2 align-items-center" style="min-width:280px;">
-                <input type="text" name="q" value="{{ request.GET.q }}" class="form-control form-control-sm" placeholder="Buscar por OC, doc, proyecto..." autocomplete="off">
-                {% if request.GET.q %}
-                <a href="?" class="btn btn-sm btn-outline-secondary" title="Limpiar búsqueda"><i class="fa-solid fa-xmark"></i></a>
-                {% endif %}
-            </form>
-        </div>
-        {% if ingresos %}
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>#</th>
-                        <th>Fecha</th>
-                        <th>Orden de Compra</th>
-                        <th>Tipo Doc.</th>
-                        <th>N° Doc.</th>
-                        <th>Proyecto</th>
-                        <th class="text-center">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for ingreso in ingresos %}
-                    <tr>
-                        <td>{{ ingreso.numIngreso }}</td>
-                        <td>{{ ingreso.fecha }}</td>
-                        <td>{{ ingreso.orden_compra|default:"Sin OC" }}</td>
-                        <td>{{ ingreso.tipo_documento }}</td>
-                        <td>{{ ingreso.num_documento }}</td>
-                        <td>{{ ingreso.proyecto }}</td>
-                        <td class="text-center">
-                            <div class="d-flex gap-1 justify-content-center">
-                                {% if user_perms.ing_editar or is_admin %}
-                                <a href="{% url 'ingreso_editar' pk=ingreso.numIngreso %}"
-                                   class="btn btn-sm btn-outline-warning rounded-circle"
-                                   title="Editar ingreso #{{ ingreso.numIngreso }}">
-                                    <i class="fa-solid fa-pen-to-square"></i>
-                                </a>
-                                {% endif %}
-                                <a href="{% url 'reporte_ingreso_detail_pdf' pk=ingreso.numIngreso %}"
-                                   target="_blank"
-                                   class="btn btn-sm btn-outline-danger rounded-circle"
-                                   title="Ver PDF del ingreso #{{ ingreso.numIngreso }}">
-                                    <i class="fa-solid fa-file-pdf"></i>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% include 'inventory/includes/paginacion.html' %}
-        {% else %}
-        <p class="text-muted text-center py-3">No hay ingresos registrados.</p>
-        {% endif %}
-    </div>
-</div>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    // ── Elementos del DOM ───────────────────────────────────────────────────
     const ordenCompraSelect = document.getElementById("id_orden_compra");
     const customBody        = document.getElementById("custom-detalles-body");
     const emptyRow          = document.getElementById("custom-empty-row");
@@ -233,7 +153,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const totalFormsInput   = document.getElementById("id_detalles-TOTAL_FORMS");
     const btnGuardar        = document.getElementById("btn-guardar-ingreso");
 
-    // Barra y modal de búsqueda manual
     const addProductBar    = document.getElementById("add-product-bar");
     const ingOpenSearchBtn = document.getElementById("ing-open-search-btn");
     const ingCantidadInput = document.getElementById("ing-cantidad");
@@ -243,45 +162,29 @@ document.addEventListener("DOMContentLoaded", function () {
     const ingSearchResults = document.getElementById("ing-search-results");
     const ingModal         = new bootstrap.Modal(document.getElementById("ingProductoSearchModal"));
 
-    // Datos de productos
     const productosData = JSON.parse(document.getElementById("productos-data").textContent);
     const productMap = {};
     productosData.forEach(p => { productMap[p.cod_prod] = p.nombre; });
 
-    // Formateador de moneda
     const fmt = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 0 });
 
-    // Estado interno
-    let detallesData = [];
+    // Pre-poblar con los detalles existentes del ingreso
+    let detallesData = JSON.parse(document.getElementById("detalles-iniciales-data").textContent);
     let selectedProductId   = null;
     let selectedProductName = null;
 
-    // ── Visibilidad de la barra de agregar ────────────────────────────────
     function updateAddBarVisibility() {
-        const sinOC = !ordenCompraSelect.value;
+        // Mostrar barra de agregar si no hay OC asignada (campo disabled con valor vacío)
+        const sinOC = !ordenCompraSelect || !ordenCompraSelect.value;
         addProductBar.classList.toggle("d-none", !sinOC);
-        const bodegaContainer = document.getElementById("bodega-field-container");
-        if (bodegaContainer) {
-            bodegaContainer.style.display = sinOC ? "" : "none";
-            if (!sinOC) {
-                const sel = document.getElementById("id_bodega");
-                if (sel) sel.value = "";
-            }
-        }
     }
 
-    // ── Render ─────────────────────────────────────────────────────────────
     function render() {
         customBody.innerHTML = "";
 
         if (detallesData.length === 0) {
-            const sinOC = !ordenCompraSelect.value;
-            emptyRow.querySelector("td").innerHTML = sinOC
-                ? '<i class="fa-solid fa-magnifying-glass me-2"></i>Use la barra de abajo para buscar y agregar productos manualmente.'
-                : '<i class="fa-solid fa-circle-info me-2"></i>Seleccione una Orden de Compra para cargar sus productos.';
             customBody.appendChild(emptyRow);
             btnGuardar.disabled = true;
-            totalFormsInput.value = 0;
             syncFormset();
             updateAddBarVisibility();
             return;
@@ -319,26 +222,23 @@ document.addEventListener("DOMContentLoaded", function () {
         updateAddBarVisibility();
     }
 
-    // ── Sync formset oculto ────────────────────────────────────────────────
     function syncFormset() {
         formsetContainer.querySelectorAll(".formset-row").forEach(r => r.remove());
-        totalFormsInput.value = detallesData.length;
+        const prefix = "detalles";
         detallesData.forEach(function (item, index) {
-            const prefix = "detalles";
             const div = document.createElement("div");
             div.className = "formset-row";
             div.innerHTML = `
-                <input type="hidden" name="${prefix}-${index}-id"       value="">
+                <input type="hidden" name="${prefix}-${index}-id"       value="${item.id || ''}">
                 <input type="hidden" name="${prefix}-${index}-producto"  value="${item.producto_id}">
-                <input type="hidden" name="${prefix}-${index}-cantidad"  value="${item.cantidad}"  class="hidden-cantidad" data-index="${index}">
+                <input type="hidden" name="${prefix}-${index}-cantidad"  value="${item.cantidad}" class="hidden-cantidad" data-index="${index}">
                 <input type="hidden" name="${prefix}-${index}-precio"    value="${item.precio}">
-                <input type="hidden" name="${prefix}-${index}-DELETE"    value="">
             `;
             formsetContainer.appendChild(div);
         });
+        totalFormsInput.value = detallesData.length;
     }
 
-    // ── Modal de búsqueda de productos ────────────────────────────────────
     function populateSearchTable(filter = "") {
         const query = filter.trim().toLowerCase();
         ingSearchResults.innerHTML = "";
@@ -393,9 +293,8 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        detallesData.push({ producto_id: selectedProductId, nombre: selectedProductName, cantidad, precio });
+        detallesData.push({ id: null, producto_id: selectedProductId, nombre: selectedProductName, cantidad, precio });
 
-        // Resetear barra
         selectedProductId   = null;
         selectedProductName = null;
         ingOpenSearchBtn.textContent = "Seleccionar producto...";
@@ -408,56 +307,6 @@ document.addEventListener("DOMContentLoaded", function () {
         render();
     });
 
-    // ── Event: cambio en select de OC ─────────────────────────────────────
-    if (ordenCompraSelect) {
-        ordenCompraSelect.addEventListener("change", function () {
-            const ordenId = this.value;
-
-            if (!ordenId) {
-                detallesData = [];
-                render();
-                return;
-            }
-
-            updateAddBarVisibility();
-
-            const urlBase = "{% url 'orden_compra_detalle' orden_id=0 %}".replace('/0/', '/' + ordenId + '/');
-            fetch(urlBase, { headers: { "X-Requested-With": "XMLHttpRequest" } })
-            .then(function (response) {
-                if (!response.ok) throw new Error("Error HTTP: " + response.status);
-                return response.json();
-            })
-            .then(function (data) {
-                if (!Array.isArray(data) || data.length === 0) {
-                    detallesData = [];
-                    render();
-                    customBody.innerHTML = "";
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = '<td colspan="5" class="text-center text-warning py-3"><i class="fa-solid fa-triangle-exclamation me-2"></i>Esta OC no tiene productos pendientes de recepción.</td>';
-                    customBody.appendChild(tr);
-                    return;
-                }
-                detallesData = data.map(function (d) {
-                    return {
-                        producto_id: d.producto_id,
-                        nombre:      d.nombre || productMap[d.producto_id] || ("Producto #" + d.producto_id),
-                        cantidad:    d.cantidad,
-                        precio:      d.precio
-                    };
-                });
-                render();
-            })
-            .catch(function (err) {
-                console.error("Error al cargar detalle de OC:", err);
-                customBody.innerHTML = "";
-                const tr = document.createElement("tr");
-                tr.innerHTML = '<td colspan="5" class="text-center text-danger py-3"><i class="fa-solid fa-circle-xmark me-2"></i>Error al cargar el detalle. Intente nuevamente.</td>';
-                customBody.appendChild(tr);
-            });
-        });
-    }
-
-    // ── Event: edición de cantidad en tabla visible ────────────────────────
     customBody.addEventListener("input", function (e) {
         if (!e.target.classList.contains("custom-qty-input")) return;
         const index  = parseInt(e.target.dataset.index, 10);
@@ -471,7 +320,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    // ── Event: eliminar fila ───────────────────────────────────────────────
     customBody.addEventListener("click", function (e) {
         const btn = e.target.closest(".eliminar-detalle");
         if (!btn) return;
@@ -482,12 +330,8 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    // Render inicial
     render();
     updateAddBarVisibility();
-
-    // Foco en tipo de documento al cargar (el redirect tras guardar deja el form vacío)
-    document.getElementById("id_tipo_documento")?.focus();
 });
 </script>
 {% endblock %}

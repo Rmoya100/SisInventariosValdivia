@@ -289,6 +289,121 @@ class IngresoView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
+class IngresoUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+    permission_required = 'inventory.change_ingreso'
+    model = Ingreso
+    form_class = IngresoForm
+    template_name = 'inventory/ingreso_form.html'
+    success_url = reverse_lazy('ingresos')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if self.object.orden_compra_id:
+            from ..models import OrdenCompra
+            form.fields['orden_compra'].queryset = (
+                form.fields['orden_compra'].queryset |
+                OrdenCompra.objects.filter(pk=self.object.orden_compra_id)
+            )
+        form.fields['orden_compra'].disabled = True
+        return form
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['productos_data'] = list(
+            Producto.objects.all().order_by('nombre').values('cod_prod', 'nombre', 'stock_actual')
+        )
+        context['detalles_iniciales_json'] = [
+            {
+                'id': d.idDetalle,
+                'producto_id': d.producto_id,
+                'nombre': d.producto.nombre,
+                'cantidad': d.cantidad,
+                'precio': float(d.precio),
+            }
+            for d in self.object.detalles.select_related('producto').all()
+        ]
+        return context
+
+    def form_valid(self, form):
+        if not form.is_valid():
+            return self.render_to_response(self.get_context_data(form=form))
+
+        total_forms = int(self.request.POST.get('detalles-TOTAL_FORMS', 0))
+        existing_ids = set(
+            DetalleIngreso.objects.filter(ingreso=self.object).values_list('idDetalle', flat=True)
+        )
+        submitted_ids = set()
+        items = []
+
+        for i in range(total_forms):
+            detail_id  = self.request.POST.get(f'detalles-{i}-id', '').strip()
+            producto_id = self.request.POST.get(f'detalles-{i}-producto', '').strip()
+            cantidad_str = self.request.POST.get(f'detalles-{i}-cantidad', '').strip()
+            precio_str   = self.request.POST.get(f'detalles-{i}-precio', '').strip()
+            if not producto_id or not cantidad_str:
+                continue
+            try:
+                cantidad = float(cantidad_str)
+                precio   = float(precio_str) if precio_str else 0.0
+            except ValueError:
+                continue
+            if cantidad <= 0:
+                continue
+            item = {
+                'id': int(detail_id) if detail_id else None,
+                'producto_id': int(producto_id),
+                'cantidad': cantidad,
+                'precio': precio,
+            }
+            if item['id']:
+                submitted_ids.add(item['id'])
+            items.append(item)
+
+        if not items:
+            messages.error(self.request, 'Debe incluir al menos un producto en el ingreso.')
+            return self.render_to_response(self.get_context_data(form=form))
+
+        with transaction.atomic():
+            self.object = form.save()
+
+            for det in DetalleIngreso.objects.filter(idDetalle__in=(existing_ids - submitted_ids)):
+                det.delete()
+
+            for item in items:
+                if item['id'] and item['id'] in existing_ids:
+                    det = DetalleIngreso.objects.get(idDetalle=item['id'])
+                    det.producto_id = item['producto_id']
+                    det.cantidad    = item['cantidad']
+                    det.precio      = item['precio']
+                    det.subtotal    = item['cantidad'] * item['precio']
+                    det.save()
+                else:
+                    DetalleIngreso.objects.create(
+                        ingreso=self.object,
+                        producto_id=item['producto_id'],
+                        cantidad=item['cantidad'],
+                        precio=item['precio'],
+                        subtotal=item['cantidad'] * item['precio'],
+                    )
+
+        audit(
+            usuario=self.request.user,
+            tipo_accion='INGRESO_EDITAR',
+            objeto_id=self.object.numIngreso,
+            modulo='Ingresos',
+            accion=f'Ingreso #{self.object.numIngreso} editado — {self.object.proyecto.nombre if self.object.proyecto else "S/P"}',
+            bodega=self.object.bodega,
+            datos={'ingreso_id': self.object.numIngreso},
+        )
+        messages.success(self.request, f'Ingreso #{self.object.numIngreso} actualizado con éxito.')
+        return redirect(self.success_url)
+
+
 class TransferenciaListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = 'inventory.view_transferencia'
     model = Transferencia
