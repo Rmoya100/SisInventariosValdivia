@@ -228,13 +228,25 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in productos_gasto %}
+                    {% for partida in partidas_gasto %}
+                    <tr style="background:#e8f0fe;">
+                        <td colspan="5" class="fw-bold text-primary py-2 px-3" style="font-size:13px; letter-spacing:.3px;">
+                            Partida: {{ partida.nombre }}
+                        </td>
+                    </tr>
+                    {% for item in partida.productos %}
                     <tr>
                         <td>{{ forloop.counter }}</td>
                         <td class="fw-semibold text-dark">{{ item.producto.nombre }}</td>
                         <td class="text-end">${{ item.precio_unitario|floatformat:0 }}</td>
-                        <td class="text-end">{{ item.cantidad_total }} un.</td>
+                        <td class="text-end">{{ item.cantidad_total|floatformat:3 }} un.</td>
                         <td class="text-end fw-bold text-success">${{ item.total_valorizado|floatformat:0 }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr style="background:#f0f4ff; border-top:2px solid #c7d2fe;">
+                        <td colspan="3" class="fw-semibold text-end text-primary" style="font-size:12px;">Subtotal {{ partida.nombre }}</td>
+                        <td class="text-end fw-semibold text-primary">{{ partida.cantidad_total|floatformat:3 }} un.</td>
+                        <td class="text-end fw-bold text-primary">${{ partida.subtotal|floatformat:0 }}</td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -245,7 +257,7 @@
                 <tfoot style="--bs-table-bg:#1e3a8a;--bs-table-color:#fff;background:#1e3a8a;color:#fff;">
                     <tr>
                         <td colspan="3" class="fw-bold text-uppercase text-white" style="letter-spacing:.5px;font-size:12px;">Total Módulo</td>
-                        <td class="text-end fw-bold text-white">{{ total_cantidades }} un.</td>
+                        <td class="text-end fw-bold text-white">{{ total_cantidades|floatformat:3 }} un.</td>
                         <td class="text-end fw-bold text-white fs-6">${{ total_modulo|floatformat:0 }}</td>
                     </tr>
                 </tfoot>

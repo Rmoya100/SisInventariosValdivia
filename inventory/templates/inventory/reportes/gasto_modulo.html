@@ -49,13 +49,23 @@
         </tr>
     </thead>
     <tbody>
-        {% for p in productos_gasto %}
+        {% for partida in partidas_gasto %}
+        <tr style="background:#e8f0fe;">
+            <td colspan="5" class="bold" style="color:#1e3a8a;padding:6px 8px;font-size:11px;">Partida: {{ partida.nombre }}</td>
+        </tr>
+        {% for p in partida.productos %}
         <tr>
             <td class="counter">{{ forloop.counter }}</td>
             <td class="bold">{{ p.producto.nombre }}</td>
             <td class="text-right">${{ p.precio_unitario|floatformat:0 }}</td>
-            <td class="text-right">{{ p.cantidad_total }} un.</td>
+            <td class="text-right">{{ p.cantidad_total|floatformat:3 }} un.</td>
             <td class="text-right bold">${{ p.total_valorizado|floatformat:0 }}</td>
+        </tr>
+        {% endfor %}
+        <tr style="background:#dde6ff; border-top:1.5px solid #c7d2fe;">
+            <td colspan="3" class="text-right bold" style="color:#1e3a8a;font-size:11px;">Subtotal {{ partida.nombre }}</td>
+            <td class="text-right bold" style="color:#1e3a8a;">{{ partida.cantidad_total|floatformat:3 }} un.</td>
+            <td class="text-right bold" style="color:#1e3a8a;">${{ partida.subtotal|floatformat:0 }}</td>
         </tr>
         {% empty %}
         <tr><td colspan="5" class="text-center muted" style="padding:24px;">No hay gastos registrados para este módulo en el período seleccionado.</td></tr>

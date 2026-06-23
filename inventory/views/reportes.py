@@ -943,68 +943,93 @@ def reporte_gasto_modulo_torre_list_view(request):
     fecha_fin = request.GET.get('fecha_fin')
     
     modulos = ModuloTorre.objects.all().order_by('nombre')
-    salidas_det = DetalleSalida.objects.select_related('salida__modulo_torre', 'producto')
-    
+    salidas_det = DetalleSalida.objects.select_related('salida__modulo_torre', 'salida__partida', 'producto')
+
     if request.user.proyecto and not request.user.es_admin:
         salidas_det = salidas_det.filter(salida__proyecto=request.user.proyecto)
-        
+
     if modulo_id:
         if modulo_id == 'sin_modulo':
             salidas_det = salidas_det.filter(salida__modulo_torre__isnull=True)
         else:
             salidas_det = salidas_det.filter(salida__modulo_torre_id=modulo_id)
-            
+
     if fecha_inicio:
         salidas_det = salidas_det.filter(salida__fecha__gte=fecha_inicio)
     if fecha_fin:
         salidas_det = salidas_det.filter(salida__fecha__lte=fecha_fin)
-        
+
     precios_dict = {}
     ultimos_ingresos = DetalleIngreso.objects.values('producto').annotate(max_id=Max('idDetalle'))
     ids_ingresos = [i['max_id'] for i in ultimos_ingresos]
     precios_qs = DetalleIngreso.objects.filter(idDetalle__in=ids_ingresos).values('producto_id', 'precio')
     for p in precios_qs:
         precios_dict[p['producto_id']] = float(p['precio'])
-        
+
     context = {
         'modulos': modulos,
         'modulo_id': modulo_id or '',
         'fecha_inicio': fecha_inicio or '',
         'fecha_fin': fecha_fin or '',
     }
-    
+
     if modulo_id:
-        productos_gasto = {}
+        partidas_gasto = {}
+        productos_flat = {}
         for d in salidas_det:
+            partida = d.salida.partida
+            p_key = partida.idPartida if partida else 'sin_partida'
             prod_id = d.producto_id
             precio_unitario = precios_dict.get(prod_id, 0.0)
             subtotal = float(d.cantidad) * precio_unitario
-            
-            if prod_id not in productos_gasto:
-                productos_gasto[prod_id] = {
-                    'producto': d.producto,
-                    'cantidad_total': 0,
-                    'precio_unitario': precio_unitario,
-                    'total_valorizado': 0.0
+
+            if p_key not in partidas_gasto:
+                partidas_gasto[p_key] = {
+                    'partida': partida,
+                    'nombre': partida.nombre if partida else 'Sin Partida',
+                    'productos': {},
+                    'subtotal': 0.0,
+                    'cantidad_total': 0.0,
                 }
-            productos_gasto[prod_id]['cantidad_total'] += d.cantidad
-            productos_gasto[prod_id]['total_valorizado'] += subtotal
-            
-        productos_gasto_list = sorted(productos_gasto.values(), key=lambda x: x['total_valorizado'], reverse=True)
-        total_modulo = sum(p['total_valorizado'] for p in productos_gasto_list)
-        total_cantidades = sum(p['cantidad_total'] for p in productos_gasto_list)
-        
-        paginator = Paginator(productos_gasto_list, 50)
-        page = request.GET.get('page', 1)
-        page_obj = paginator.get_page(page)
-        
+            grp = partidas_gasto[p_key]
+            grp['subtotal'] += subtotal
+            grp['cantidad_total'] += float(d.cantidad)
+
+            if prod_id not in grp['productos']:
+                grp['productos'][prod_id] = {
+                    'producto': d.producto,
+                    'cantidad_total': 0.0,
+                    'precio_unitario': precio_unitario,
+                    'total_valorizado': 0.0,
+                }
+            grp['productos'][prod_id]['cantidad_total'] += float(d.cantidad)
+            grp['productos'][prod_id]['total_valorizado'] += subtotal
+
+            if prod_id not in productos_flat:
+                productos_flat[prod_id] = {
+                    'producto': d.producto,
+                    'cantidad_total': 0.0,
+                    'precio_unitario': precio_unitario,
+                    'total_valorizado': 0.0,
+                }
+            productos_flat[prod_id]['cantidad_total'] += float(d.cantidad)
+            productos_flat[prod_id]['total_valorizado'] += subtotal
+
+        partidas_gasto_list = sorted(partidas_gasto.values(), key=lambda x: x['nombre'])
+        for grp in partidas_gasto_list:
+            grp['productos'] = sorted(grp['productos'].values(), key=lambda p: p['total_valorizado'], reverse=True)
+
+        total_modulo = sum(g['subtotal'] for g in partidas_gasto_list)
+        total_cantidades = sum(g['cantidad_total'] for g in partidas_gasto_list)
+
         if modulo_id == 'sin_modulo':
             modulo_nombre = 'Sin Módulo / Torre'
         else:
             modulo_obj = get_object_or_404(ModuloTorre, pk=modulo_id)
             modulo_nombre = modulo_obj.nombre
-            
+
         # Top 10 productos para gráfico de barras
+        productos_gasto_list = sorted(productos_flat.values(), key=lambda x: x['total_valorizado'], reverse=True)
         top_chart = productos_gasto_list[:10]
         chart_labels  = [p['producto'].nombre for p in top_chart]
         chart_values  = [p['total_valorizado'] for p in top_chart]
@@ -1014,11 +1039,9 @@ def reporte_gasto_modulo_torre_list_view(request):
         context.update({
             'es_detalle': True,
             'modulo_nombre': modulo_nombre,
-            'productos_gasto': page_obj,
+            'partidas_gasto': partidas_gasto_list,
             'total_modulo': total_modulo,
             'total_cantidades': total_cantidades,
-            'page_obj': page_obj,
-            'paginator': paginator,
             'chart_labels': chart_labels,
             'chart_values': chart_values,
             'chart_quantities': chart_quantities,
@@ -1089,38 +1112,38 @@ def reporte_gasto_modulo_torre_pdf(request):
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
     
-    salidas_det = DetalleSalida.objects.select_related('salida__modulo_torre', 'producto')
-    
+    salidas_det = DetalleSalida.objects.select_related('salida__modulo_torre', 'salida__partida', 'producto')
+
     if request.user.proyecto and not request.user.es_admin:
         salidas_det = salidas_det.filter(salida__proyecto=request.user.proyecto)
-        
+
     if modulo_id:
         if modulo_id == 'sin_modulo':
             salidas_det = salidas_det.filter(salida__modulo_torre__isnull=True)
         else:
             salidas_det = salidas_det.filter(salida__modulo_torre_id=modulo_id)
-            
+
     if fecha_inicio:
         salidas_det = salidas_det.filter(salida__fecha__gte=fecha_inicio)
     if fecha_fin:
         salidas_det = salidas_det.filter(salida__fecha__lte=fecha_fin)
-        
+
     precios_dict = {}
     ultimos_ingresos = DetalleIngreso.objects.values('producto').annotate(max_id=Max('idDetalle'))
     ids_ingresos = [i['max_id'] for i in ultimos_ingresos]
     precios_qs = DetalleIngreso.objects.filter(idDetalle__in=ids_ingresos).values('producto_id', 'precio')
     for p in precios_qs:
         precios_dict[p['producto_id']] = float(p['precio'])
-        
+
     empresa = Empresa.objects.first()
     titulo_reporte = 'Reporte de Gasto de Material Valorizado'
-    
+
     filtros = []
     if fecha_inicio:
         filtros.append(f'Desde: {fecha_inicio}')
     if fecha_fin:
         filtros.append(f'Hasta: {fecha_fin}')
-        
+
     if modulo_id:
         if modulo_id == 'sin_modulo':
             modulo_nombre = 'Sin Módulo / Torre'
@@ -1128,34 +1151,51 @@ def reporte_gasto_modulo_torre_pdf(request):
             modulo_obj = get_object_or_404(ModuloTorre, pk=modulo_id)
             modulo_nombre = modulo_obj.nombre
         filtros.append(f'Módulo: {modulo_nombre}')
-        
+
         if filtros:
             titulo_reporte += f" ({', '.join(filtros)})"
-            
-        productos_gasto = {}
+
+        partidas_gasto = {}
         for d in salidas_det:
+            partida = d.salida.partida
+            p_key = partida.idPartida if partida else 'sin_partida'
             prod_id = d.producto_id
             precio_unitario = precios_dict.get(prod_id, 0.0)
             subtotal = float(d.cantidad) * precio_unitario
-            
-            if prod_id not in productos_gasto:
-                productos_gasto[prod_id] = {
-                    'producto': d.producto,
-                    'cantidad_total': 0,
-                    'precio_unitario': precio_unitario,
-                    'total_valorizado': 0.0
+
+            if p_key not in partidas_gasto:
+                partidas_gasto[p_key] = {
+                    'partida': partida,
+                    'nombre': partida.nombre if partida else 'Sin Partida',
+                    'productos': {},
+                    'subtotal': 0.0,
+                    'cantidad_total': 0.0,
                 }
-            productos_gasto[prod_id]['cantidad_total'] += d.cantidad
-            productos_gasto[prod_id]['total_valorizado'] += subtotal
-            
-        productos_gasto_list = sorted(productos_gasto.values(), key=lambda x: x['total_valorizado'], reverse=True)
-        total_modulo = sum(p['total_valorizado'] for p in productos_gasto_list)
-        total_cantidades = sum(p['cantidad_total'] for p in productos_gasto_list)
-        
+            grp = partidas_gasto[p_key]
+            grp['subtotal'] += subtotal
+            grp['cantidad_total'] += float(d.cantidad)
+
+            if prod_id not in grp['productos']:
+                grp['productos'][prod_id] = {
+                    'producto': d.producto,
+                    'cantidad_total': 0.0,
+                    'precio_unitario': precio_unitario,
+                    'total_valorizado': 0.0,
+                }
+            grp['productos'][prod_id]['cantidad_total'] += float(d.cantidad)
+            grp['productos'][prod_id]['total_valorizado'] += subtotal
+
+        partidas_gasto_list = sorted(partidas_gasto.values(), key=lambda x: x['nombre'])
+        for grp in partidas_gasto_list:
+            grp['productos'] = sorted(grp['productos'].values(), key=lambda p: p['total_valorizado'], reverse=True)
+
+        total_modulo = sum(g['subtotal'] for g in partidas_gasto_list)
+        total_cantidades = sum(g['cantidad_total'] for g in partidas_gasto_list)
+
         context = {
             'es_detalle': True,
             'modulo_nombre': modulo_nombre,
-            'productos_gasto': productos_gasto_list,
+            'partidas_gasto': partidas_gasto_list,
             'total_modulo': total_modulo,
             'total_cantidades': total_cantidades,
             'titulo_reporte': titulo_reporte,
@@ -1211,70 +1251,113 @@ def exportar_gasto_modulo_torre_excel(request):
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
     
-    salidas_det = DetalleSalida.objects.select_related('salida__modulo_torre', 'producto')
-    
+    salidas_det = DetalleSalida.objects.select_related('salida__modulo_torre', 'salida__partida', 'producto')
+
     if request.user.proyecto and not request.user.es_admin:
         salidas_det = salidas_det.filter(salida__proyecto=request.user.proyecto)
-        
+
     if modulo_id:
         if modulo_id == 'sin_modulo':
             salidas_det = salidas_det.filter(salida__modulo_torre__isnull=True)
         else:
             salidas_det = salidas_det.filter(salida__modulo_torre_id=modulo_id)
-            
+
     if fecha_inicio:
         salidas_det = salidas_det.filter(salida__fecha__gte=fecha_inicio)
     if fecha_fin:
         salidas_det = salidas_det.filter(salida__fecha__lte=fecha_fin)
-        
+
     precios_dict = {}
     ultimos_ingresos = DetalleIngreso.objects.values('producto').annotate(max_id=Max('idDetalle'))
     ids_ingresos = [i['max_id'] for i in ultimos_ingresos]
     precios_qs = DetalleIngreso.objects.filter(idDetalle__in=ids_ingresos).values('producto_id', 'precio')
     for p in precios_qs:
         precios_dict[p['producto_id']] = float(p['precio'])
-        
+
     wb = Workbook()
     ws = wb.active
-    
+
+    from openpyxl.styles import Font, PatternFill, Alignment
+    header_fill = PatternFill(start_color='1E3A8A', end_color='1E3A8A', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF')
+    partida_fill = PatternFill(start_color='E8F0FE', end_color='E8F0FE', fill_type='solid')
+    partida_font = Font(bold=True, color='1E3A8A')
+    subtotal_fill = PatternFill(start_color='C7D2FE', end_color='C7D2FE', fill_type='solid')
+    subtotal_font = Font(bold=True, color='1E3A8A')
+    total_fill = PatternFill(start_color='1E3A8A', end_color='1E3A8A', fill_type='solid')
+    total_font = Font(bold=True, color='FFFFFF')
+
     if modulo_id:
         if modulo_id == 'sin_modulo':
             modulo_nombre = 'Sin Módulo / Torre'
         else:
             modulo_obj = get_object_or_404(ModuloTorre, pk=modulo_id)
             modulo_nombre = modulo_obj.nombre
-            
+
         ws.title = f"Gasto {modulo_nombre[:20]}"
         ws.append([f'Reporte Detallado de Gasto - Módulo/Torre: {modulo_nombre}'])
         if fecha_inicio or fecha_fin:
             ws.append([f'Período: {fecha_inicio or "Inicio"} - {fecha_fin or "Fin"}'])
         ws.append([])
-        
-        ws.append(['Producto', 'Precio Unitario', 'Cantidad Total', 'Total Valorizado'])
-        
-        productos_gasto = {}
+
+        header_row = ['Partida', 'Producto', 'Precio Unitario', 'Cantidad Total', 'Total Valorizado']
+        ws.append(header_row)
+        for cell in ws[ws.max_row]:
+            cell.font = header_font
+            cell.fill = header_fill
+
+        partidas_gasto = {}
         for d in salidas_det:
+            partida = d.salida.partida
+            p_key = partida.idPartida if partida else 'sin_partida'
             prod_id = d.producto_id
             precio_unitario = precios_dict.get(prod_id, 0.0)
             subtotal = float(d.cantidad) * precio_unitario
-            if prod_id not in productos_gasto:
-                productos_gasto[prod_id] = {
-                    'nombre': d.producto.nombre,
-                    'cantidad_total': 0,
-                    'precio_unitario': precio_unitario,
-                    'total_valorizado': 0.0
+
+            if p_key not in partidas_gasto:
+                partidas_gasto[p_key] = {
+                    'nombre': partida.nombre if partida else 'Sin Partida',
+                    'productos': {},
+                    'subtotal': 0.0,
+                    'cantidad_total': 0.0,
                 }
-            productos_gasto[prod_id]['cantidad_total'] += d.cantidad
-            productos_gasto[prod_id]['total_valorizado'] += subtotal
-            
-        productos_gasto_list = sorted(productos_gasto.values(), key=lambda x: x['total_valorizado'], reverse=True)
-        for p in productos_gasto_list:
-            ws.append([p['nombre'], p['precio_unitario'], p['cantidad_total'], p['total_valorizado']])
-            
-        ws.append([])
-        total_modulo = sum(p['total_valorizado'] for p in productos_gasto_list)
-        total_cantidades = sum(p['cantidad_total'] for p in productos_gasto_list)
-        ws.append(['TOTAL', '', total_cantidades, total_modulo])
+            grp = partidas_gasto[p_key]
+            grp['subtotal'] += subtotal
+            grp['cantidad_total'] += float(d.cantidad)
+
+            if prod_id not in grp['productos']:
+                grp['productos'][prod_id] = {
+                    'nombre': d.producto.nombre,
+                    'cantidad_total': 0.0,
+                    'precio_unitario': precio_unitario,
+                    'total_valorizado': 0.0,
+                }
+            grp['productos'][prod_id]['cantidad_total'] += float(d.cantidad)
+            grp['productos'][prod_id]['total_valorizado'] += subtotal
+
+        partidas_gasto_list = sorted(partidas_gasto.values(), key=lambda x: x['nombre'])
+        total_modulo = 0.0
+        total_cantidades = 0.0
+        for grp in partidas_gasto_list:
+            prods = sorted(grp['productos'].values(), key=lambda p: p['total_valorizado'], reverse=True)
+            ws.append([f"Partida: {grp['nombre']}", '', '', '', ''])
+            for cell in ws[ws.max_row]:
+                cell.font = partida_font
+                cell.fill = partida_fill
+            for prod in prods:
+                ws.append(['', prod['nombre'], prod['precio_unitario'], prod['cantidad_total'], prod['total_valorizado']])
+            ws.append(['', f"Subtotal {grp['nombre']}", '', grp['cantidad_total'], grp['subtotal']])
+            for cell in ws[ws.max_row]:
+                cell.font = subtotal_font
+                cell.fill = subtotal_fill
+            ws.append([])
+            total_modulo += grp['subtotal']
+            total_cantidades += grp['cantidad_total']
+
+        ws.append(['TOTAL MÓDULO', '', '', total_cantidades, total_modulo])
+        for cell in ws[ws.max_row]:
+            cell.font = total_font
+            cell.fill = total_fill
     else:
         ws.title = "Gasto General Módulos"
         ws.append(['Reporte Resumido de Gasto por Módulo/Torre'])
