@@ -13,7 +13,7 @@ from .compras import (
     OrdenCompraView, OrdenCompraUpdateView, get_orden_compra_detalle
 )
 from .movimientos import (
-    SalidaView, IngresoView,
+    SalidaView, IngresoView, IngresoUpdateView,
     TransferenciaListView, TransferenciaCreateView, TransferenciaUpdateView, recibir_transferencia,
     trazabilidad_list, api_stock_disponible,
     api_partidas_por_proyecto, api_modulos_torre_por_proyecto,
