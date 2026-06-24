@@ -1,0 +1,314 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+{% block title %}Editar Salida #{{ object.numSalida }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'salidas' %}" class="btn btn-white text-muted shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;" title="Volver a salidas"><i class="fa-solid fa-arrow-left"></i></a>
+        <h2 class="fw-bold text-dark mb-0"><i class="fa-solid fa-pen-to-square text-warning me-2"></i>Editar Salida #{{ object.numSalida }}</h2>
+    </div>
+</div>
+
+{% if messages %}
+<div class="mb-3">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="card shadow-lg border-0 rounded-4 mb-4">
+    <div class="card-body p-4">
+        <form method="post" id="salida-form">
+            {% csrf_token %}
+            <h5 class="fw-bold mb-3 text-warning"><i class="fa-solid fa-circle-info me-2"></i>Datos de la Salida</h5>
+            <div class="row g-3 mb-4">
+                {% for field in form %}
+                <div class="col-md-4">
+                    <label for="{{ field.id_for_label }}" class="form-label fw-semibold text-muted">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                    <div class="text-danger small mt-1">{{ field.errors }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-list-check me-2 text-danger"></i>Detalles de la Salida</h5>
+
+            <!-- Barra de agregar producto -->
+            <div class="custom-add-container shadow-sm mb-3">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-5 d-flex align-items-center gap-2">
+                        <span class="fs-4 text-danger"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <button type="button" id="open-product-search-btn" class="btn btn-outline-danger btn-sm w-100 text-start" style="border-radius: 0.75rem; padding: 0.55rem 0.75rem;">
+                            Seleccionar producto...
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" id="custom-cantidad" class="form-control form-control-sm" placeholder="*Cantidad" step="0.001" min="0.001" style="border-radius: 0.75rem; padding: 0.4rem 0.75rem;">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" id="custom-add-btn" class="btn btn-outline-danger btn-sm w-100 fw-bold" style="border-radius: 0.75rem; padding: 0.55rem 0.75rem;">
+                            + Agregar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal de búsqueda de productos -->
+            <div class="modal fade" id="productoSearchModal" tabindex="-1" aria-labelledby="productoSearchModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content rounded-4 shadow border-0">
+                        <div class="modal-header border-0">
+                            <h5 class="modal-title" id="productoSearchModalLabel">Buscar Producto</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body py-3">
+                            <div class="mb-3">
+                                <input type="text" id="producto-search-input" class="form-control form-control-sm" placeholder="Buscar por nombre">
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th class="text-end">Stock ({{ proyecto_stock_label }})</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="producto-search-results"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{ productos_data|json_script:"productos-data" }}
+            {{ detalles_iniciales_json|json_script:"detalles-iniciales-data" }}
+
+            <!-- Tabla visible de detalles -->
+            <div class="table-responsive mb-4">
+                <table class="table table-sm align-middle custom-table" id="custom-detalles-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 70%;">Producto</th>
+                            <th style="width: 20%;" class="text-center">Unidades</th>
+                            <th style="width: 10%;" class="text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="custom-detalles-body">
+                        <tr id="custom-empty-placeholder">
+                            <td colspan="3" class="text-center text-muted py-4">Busca, selecciona y agrega los datos del producto en salida.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Formset manual oculto -->
+            <div class="d-none" id="django-formset-container">
+                <input type="hidden" name="detalles-TOTAL_FORMS"   id="id_detalles-TOTAL_FORMS"   value="0">
+                <input type="hidden" name="detalles-INITIAL_FORMS" id="id_detalles-INITIAL_FORMS" value="0">
+                <input type="hidden" name="detalles-MIN_NUM_FORMS" id="id_detalles-MIN_NUM_FORMS" value="0">
+                <input type="hidden" name="detalles-MAX_NUM_FORMS" id="id_detalles-MAX_NUM_FORMS" value="1000">
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <a href="{% url 'salidas' %}" class="btn btn-outline-secondary rounded-pill px-4">
+                    <i class="fa-solid fa-xmark me-2"></i>Cancelar
+                </a>
+                <button type="submit" id="btn-guardar-salida" class="btn btn-warning text-white shadow-sm rounded-pill px-5 fw-bold" disabled>
+                    <i class="fa-solid fa-floppy-disk me-2"></i>Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const customCantidadInput   = document.getElementById("custom-cantidad");
+    const customAddBtn          = document.getElementById("custom-add-btn");
+    const customDetallesBody    = document.getElementById("custom-detalles-body");
+    const customEmptyPlaceholder = document.getElementById("custom-empty-placeholder");
+    const openProductSearchBtn  = document.getElementById("open-product-search-btn");
+    const formsetContainer      = document.getElementById("django-formset-container");
+    const totalFormsInput       = document.getElementById("id_detalles-TOTAL_FORMS");
+    const btnGuardar            = document.getElementById("btn-guardar-salida");
+    const productoSearchInput   = document.getElementById("producto-search-input");
+    const productoSearchResults = document.getElementById("producto-search-results");
+    const productoSearchModal   = new bootstrap.Modal(document.getElementById("productoSearchModal"));
+
+    let productOptions = JSON.parse(document.getElementById('productos-data').textContent);
+    let detallesData   = JSON.parse(document.getElementById('detalles-iniciales-data').textContent);
+    let selectedProductId   = null;
+    let selectedProductName = null;
+
+    function resetProductSelection() {
+        selectedProductId   = null;
+        selectedProductName = null;
+        openProductSearchBtn.textContent = "Seleccionar producto...";
+        openProductSearchBtn.classList.remove("btn-danger");
+        openProductSearchBtn.classList.add("btn-outline-danger");
+    }
+
+    function populateProductSearchTable(filter = "") {
+        const query = filter.trim().toLowerCase();
+        productoSearchResults.innerHTML = "";
+        let matches = 0;
+        productOptions.forEach(prod => {
+            if (!query || prod.nombre.toLowerCase().includes(query)) {
+                const stockDisp = prod.stock_disponible !== undefined ? prod.stock_disponible : prod.stock_actual;
+                const stockClass = stockDisp <= 0 ? 'text-danger fw-bold' : (stockDisp <= 5 ? 'text-warning fw-bold' : 'text-end');
+                const tr = document.createElement("tr");
+                tr.className = "product-search-row";
+                tr.dataset.productId    = prod.cod_prod;
+                tr.dataset.productName  = prod.nombre;
+                tr.dataset.productStock = stockDisp;
+                tr.innerHTML = `<td>${prod.nombre}</td><td class="text-end ${stockClass}">${stockDisp}</td>`;
+                productoSearchResults.appendChild(tr);
+                matches++;
+            }
+        });
+        if (!matches) {
+            productoSearchResults.innerHTML = '<tr><td class="text-center text-muted" colspan="2">No hay productos que coincidan.</td></tr>';
+        }
+    }
+
+    function syncFormset() {
+        formsetContainer.querySelectorAll(".formset-row").forEach(r => r.remove());
+        const prefix = "detalles";
+        detallesData.forEach(function (item, index) {
+            const div = document.createElement("div");
+            div.className = "formset-row";
+            div.innerHTML = `
+                <input type="hidden" name="${prefix}-${index}-id"       value="${item.id || ''}">
+                <input type="hidden" name="${prefix}-${index}-producto"  value="${item.producto_id}">
+                <input type="hidden" name="${prefix}-${index}-cantidad"  value="${item.cantidad}" class="hidden-cantidad" data-index="${index}">
+            `;
+            formsetContainer.appendChild(div);
+        });
+        totalFormsInput.value = detallesData.length;
+    }
+
+    function render() {
+        const placeholder = customEmptyPlaceholder.cloneNode(true);
+        customDetallesBody.innerHTML = "";
+
+        if (detallesData.length === 0) {
+            customDetallesBody.appendChild(placeholder);
+            btnGuardar.disabled = true;
+            syncFormset();
+            return;
+        }
+
+        btnGuardar.disabled = false;
+        detallesData.forEach(function (item, index) {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><strong>${item.nombre}</strong></td>
+                <td class="text-center">
+                    <input type="number"
+                           class="form-control form-control-sm mx-auto text-center custom-qty-input"
+                           value="${item.cantidad}"
+                           min="0.001" step="0.001"
+                           style="width:120px; border-radius:0.5rem;"
+                           data-index="${index}">
+                </td>
+                <td class="text-center">
+                    <button type="button"
+                            class="btn btn-action-delete btn-sm btn-outline-danger rounded-circle"
+                            data-index="${index}" title="Eliminar">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </td>
+            `;
+            customDetallesBody.appendChild(tr);
+        });
+
+        syncFormset();
+    }
+
+    openProductSearchBtn.addEventListener("click", function () {
+        productoSearchInput.value = "";
+        populateProductSearchTable();
+        productoSearchModal.show();
+    });
+
+    productoSearchInput.addEventListener("input", function (e) {
+        populateProductSearchTable(e.target.value);
+    });
+
+    productoSearchResults.addEventListener("dblclick", function (e) {
+        const row = e.target.closest("tr.product-search-row");
+        if (!row) return;
+        selectedProductId   = row.dataset.productId;
+        selectedProductName = row.dataset.productName;
+        const stockDisp     = row.dataset.productStock;
+        openProductSearchBtn.textContent = `${selectedProductName} (Stock: ${stockDisp})`;
+        openProductSearchBtn.classList.remove("btn-outline-danger");
+        openProductSearchBtn.classList.add("btn-danger");
+        productoSearchModal.hide();
+        customCantidadInput.focus();
+    });
+
+    customAddBtn.addEventListener("click", function () {
+        const cant = parseFloat(customCantidadInput.value) || 0;
+        if (!selectedProductId) {
+            alert("Por favor, seleccione un producto.");
+            return;
+        }
+        if (cant <= 0) {
+            alert("Por favor, ingrese una cantidad mayor a 0.");
+            return;
+        }
+
+        const selectedProd = productOptions.find(p => String(p.cod_prod) === String(selectedProductId));
+        if (selectedProd) {
+            const stockDisp = selectedProd.stock_disponible !== undefined ? selectedProd.stock_disponible : selectedProd.stock_actual;
+            if (cant > stockDisp) {
+                const confirmMsg = `⚠️ Stock insuficiente: "${selectedProd.nombre}" tiene ${stockDisp} unidades disponibles, pero estás solicitando ${cant}.\n\nEl servidor rechazará este pedido. ¿Deseas continuar de todos modos?`;
+                if (!confirm(confirmMsg)) return;
+            }
+        }
+
+        const existingIndex = detallesData.findIndex(item => String(item.producto_id) === String(selectedProductId));
+        if (existingIndex >= 0) {
+            detallesData[existingIndex].cantidad = cant;
+        } else {
+            detallesData.push({ id: null, producto_id: selectedProductId, nombre: selectedProductName, cantidad: cant });
+        }
+
+        resetProductSelection();
+        customCantidadInput.value = "";
+        render();
+    });
+
+    customDetallesBody.addEventListener("input", function (e) {
+        if (!e.target.classList.contains("custom-qty-input")) return;
+        const index  = parseInt(e.target.dataset.index, 10);
+        const newQty = parseFloat(e.target.value) || 0;
+        if (detallesData[index] !== undefined) {
+            detallesData[index].cantidad = newQty;
+            const hiddenQty = formsetContainer.querySelector(`.hidden-cantidad[data-index="${index}"]`);
+            if (hiddenQty) hiddenQty.value = newQty;
+        }
+    });
+
+    customDetallesBody.addEventListener("click", function (e) {
+        const btn = e.target.closest(".btn-action-delete");
+        if (!btn) return;
+        const index = parseInt(btn.dataset.index, 10);
+        if (!isNaN(index)) {
+            detallesData.splice(index, 1);
+            render();
+        }
+    });
+
+    render();
+});
+</script>
+{% endblock %}

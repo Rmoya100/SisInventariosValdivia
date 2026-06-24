@@ -474,4 +474,58 @@
     });
 </script>
 {% endif %}
+
+{# Lista de salidas existentes #}
+<div class="card shadow-sm border-0 rounded-4 mt-4">
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-history me-2 text-danger"></i>Salidas Registradas</h5>
+            <form method="get" class="d-flex gap-2 align-items-center" style="min-width:280px;">
+                <input type="text" name="q" value="{{ request.GET.q }}" class="form-control form-control-sm" placeholder="Buscar por #, módulo, solicitante..." autocomplete="off">
+                {% if request.GET.q %}
+                <a href="?" class="btn btn-sm btn-outline-secondary" title="Limpiar búsqueda"><i class="fa-solid fa-xmark"></i></a>
+                {% endif %}
+            </form>
+        </div>
+        {% if salidas %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Fecha</th>
+                        <th>Módulo/Torre</th>
+                        <th>Partida</th>
+                        <th>Solicitante</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for salida in salidas %}
+                    <tr>
+                        <td>{{ salida.numSalida }}</td>
+                        <td>{{ salida.fecha }}</td>
+                        <td>{{ salida.modulo_torre|default:"—" }}</td>
+                        <td>{{ salida.partida|default:"—" }}</td>
+                        <td>{{ salida.solicitante|default:"—" }}</td>
+                        <td class="text-center">
+                            {% if user_perms.sal_editar or is_admin %}
+                            <a href="{% url 'salida_editar' pk=salida.numSalida %}"
+                               class="btn btn-sm btn-outline-warning rounded-circle"
+                               title="Editar salida #{{ salida.numSalida }}">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'inventory/includes/paginacion.html' %}
+        {% else %}
+        <p class="text-muted text-center py-3">No hay salidas registradas.</p>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

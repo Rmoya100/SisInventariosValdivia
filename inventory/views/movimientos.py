@@ -99,7 +99,11 @@ class SalidaView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
                 Q(solicitante__apellido__icontains=q)
             )
 
-        context['salidas'] = salidas
+        from django.core.paginator import Paginator
+        paginator = Paginator(salidas.order_by('-numSalida'), 25)
+        page_obj = paginator.get_page(self.request.GET.get('page', 1))
+        context['salidas'] = page_obj
+        context['page_obj'] = page_obj
         return context
 
     def form_valid(self, form):
@@ -185,6 +189,137 @@ class SalidaView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
             return redirect(self.success_url)
         else:
             return self.render_to_response(self.get_context_data(form=form))
+
+
+class SalidaUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+    permission_required = 'inventory.change_salida'
+    model = Salida
+    form_class = SalidaForm
+    template_name = 'inventory/salida_form.html'
+    success_url = reverse_lazy('salidas')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if 'bodega' in form.fields:
+            form.fields['bodega'].disabled = True
+        return form
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.request.user
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        proyecto = self.object.proyecto
+        productos = list(Producto.objects.all().order_by('nombre').values('cod_prod', 'nombre', 'stock_actual'))
+        if proyecto:
+            stock_map = {
+                s['producto_id']: s['cantidad']
+                for s in StockProyecto.objects.filter(proyecto=proyecto).values('producto_id', 'cantidad')
+            }
+            for prod in productos:
+                prod['stock_disponible'] = stock_map.get(prod['cod_prod'], 0)
+        else:
+            for prod in productos:
+                prod['stock_disponible'] = prod['stock_actual']
+        context['productos_data'] = productos
+        context['proyecto_stock_label'] = proyecto.nombre if proyecto else 'Global'
+        context['detalles_iniciales_json'] = [
+            {
+                'id': d.idDetalle,
+                'producto_id': d.producto_id,
+                'nombre': d.producto.nombre,
+                'cantidad': float(d.cantidad),
+            }
+            for d in self.object.detalles.select_related('producto').all()
+        ]
+        return context
+
+    def form_valid(self, form):
+        from decimal import Decimal, InvalidOperation
+        total_forms = int(self.request.POST.get('detalles-TOTAL_FORMS', 0))
+        existing_ids = set(
+            DetalleSalida.objects.filter(salida=self.object).values_list('idDetalle', flat=True)
+        )
+        existing_map = {d.idDetalle: d.cantidad for d in DetalleSalida.objects.filter(idDetalle__in=existing_ids)}
+        submitted_ids, items = set(), []
+
+        for i in range(total_forms):
+            detail_id   = self.request.POST.get(f'detalles-{i}-id', '').strip()
+            producto_id = self.request.POST.get(f'detalles-{i}-producto', '').strip()
+            cant_str    = self.request.POST.get(f'detalles-{i}-cantidad', '').strip()
+            if not producto_id or not cant_str:
+                continue
+            try:
+                cantidad = Decimal(cant_str)
+            except InvalidOperation:
+                continue
+            if cantidad <= 0:
+                continue
+            item = {
+                'id': int(detail_id) if detail_id else None,
+                'producto_id': int(producto_id),
+                'cantidad': cantidad,
+            }
+            if item['id']:
+                submitted_ids.add(item['id'])
+            items.append(item)
+
+        if not items:
+            messages.error(self.request, 'Debe incluir al menos un producto en la salida.')
+            return self.render_to_response(self.get_context_data(form=form))
+
+        proyecto = self.object.proyecto
+        if proyecto:
+            incrementos = {}
+            for item in items:
+                old_qty = existing_map.get(item['id'], Decimal('0')) if item['id'] else Decimal('0')
+                diff = item['cantidad'] - old_qty
+                if diff > 0:
+                    incrementos[item['producto_id']] = incrementos.get(item['producto_id'], Decimal('0')) + diff
+            hay_error = False
+            for prod_id, diff in incrementos.items():
+                sp = StockProyecto.objects.filter(producto_id=prod_id, proyecto=proyecto).first()
+                stock_val = sp.cantidad if sp else 0
+                if stock_val < diff:
+                    prod_obj = Producto.objects.get(pk=prod_id)
+                    messages.error(
+                        self.request,
+                        f"Stock insuficiente para {prod_obj.nombre}. Disponible: {stock_val}. Incremento: {diff}."
+                    )
+                    hay_error = True
+            if hay_error:
+                return self.render_to_response(self.get_context_data(form=form))
+
+        with transaction.atomic():
+            self.object = form.save()
+            for det in DetalleSalida.objects.filter(idDetalle__in=(existing_ids - submitted_ids)):
+                det.delete()
+            for item in items:
+                if item['id'] and item['id'] in existing_ids:
+                    det = DetalleSalida.objects.get(idDetalle=item['id'])
+                    det.producto_id = item['producto_id']
+                    det.cantidad    = item['cantidad']
+                    det.save()
+                else:
+                    DetalleSalida.objects.create(
+                        salida=self.object,
+                        producto_id=item['producto_id'],
+                        cantidad=item['cantidad'],
+                    )
+        audit(
+            usuario=self.request.user,
+            tipo_accion='SALIDA_EDITAR',
+            objeto_id=self.object.numSalida,
+            modulo='Salidas',
+            accion=f'Salida #{self.object.numSalida} editada — {self.object.proyecto.nombre if self.object.proyecto else "S/P"}',
+            bodega=self.object.bodega,
+            datos={'salida_id': self.object.numSalida},
+        )
+        messages.success(self.request, f'Salida #{self.object.numSalida} actualizada con éxito.')
+        return redirect(self.success_url)
+
 
 class IngresoView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     permission_required = 'inventory.add_ingreso'
