@@ -1,0 +1,143 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+
+{% block title %}GDI de Activos{% endblock %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'index' %}" class="btn rounded-circle" title="Volver al inicio">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="fw-bold mb-0" style="font-size:1.35rem;">GDI de Activos (Herramientas / Maquinaria)</h2>
+            <p class="mb-0 text-muted" style="font-size:0.8rem;">Genera la GDI (despacho) → el destino recepciona con GRI.</p>
+        </div>
+    </div>
+    {% if is_admin or perms.inventory.add_transferenciaactivo %}
+    <a href="{% url 'transferencia_activo_crear' %}" class="btn btn-primary rounded-pill px-4 fw-semibold">
+        <i class="fa-solid fa-plus me-2"></i>Nueva GDI
+    </a>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4" style="width:80px;">Folio</th>
+                        <th>Origen</th>
+                        <th>Destino</th>
+                        <th>Activos</th>
+                        <th style="width:130px;">Fecha</th>
+                        <th style="width:150px;">Estado</th>
+                        <th class="text-end pe-4" style="width:130px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transferencias %}
+                    <tr>
+                        <td class="ps-4">
+                            <span class="fw-semibold text-muted" style="font-size:0.85rem;">#{{ t.idTransferencia }}</span>
+                        </td>
+                        <td>
+                            <span class="project-tag project-tag--neutral">{{ t.bodega_origen }}</span>
+                        </td>
+                        <td>
+                            <span class="project-tag project-tag--primary">{{ t.bodega_destino }}</span>
+                        </td>
+                        <td style="font-size:0.82rem;">
+                            {% for d in t.detalles_activos.all %}
+                                <span class="badge {% if d.tipo_activo == 'HERRAMIENTA' %}bg-info{% else %}bg-secondary{% endif %} me-1">
+                                    {{ d.get_activo_display }}
+                                </span>
+                            {% empty %}
+                                <span class="text-muted">—</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            <span style="font-size:0.85rem;">{{ t.fecha_despacho|date:"d/m/Y" }}</span>
+                        </td>
+                        <td>
+                            {% if t.estado == 'RECEPCION OK' %}
+                                <span class="status-badge status-badge--success">
+                                    <i class="fa-solid fa-circle-check me-1"></i>Recepción OK
+                                </span>
+                            {% elif t.estado == 'RECEPCION PARCIAL' %}
+                                <span class="status-badge status-badge--warning">
+                                    <i class="fa-solid fa-circle-half-stroke me-1"></i>Parcial
+                                </span>
+                            {% else %}
+                                <span class="status-badge status-badge--info">
+                                    <i class="fa-solid fa-truck me-1"></i>En Tránsito
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="d-flex gap-1 justify-content-end align-items-center">
+                                <a href="{% url 'reporte_transferencia_activo_pdf' t.pk %}" target="_blank"
+                                   class="action-btn action-btn--ghost" title="Imprimir GDI">
+                                    <i class="fa-solid fa-file-pdf"></i>
+                                </a>
+                                {% if t.estado != 'RECEPCION OK' %}
+                                    {% if is_admin or perms.inventory.change_transferenciaactivo %}
+                                        <a href="{% url 'transferencia_activo_recibir' t.pk %}"
+                                           class="action-btn action-btn--success" title="Recepcionar GRI">
+                                            <i class="fa-solid fa-box-open"></i>
+                                        </a>
+                                        <a href="{% url 'transferencia_activo_editar' t.pk %}"
+                                           class="action-btn action-btn--primary" title="Editar GDI">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </a>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5">
+                            <div style="color:var(--gray-300); font-size:2.5rem; margin-bottom:.75rem;">
+                                <i class="fa-solid fa-screwdriver-wrench"></i>
+                            </div>
+                            <p class="fw-semibold text-muted mb-1">No hay GDIs de activos registradas</p>
+                            <p class="text-muted" style="font-size:0.82rem;">Crea una GDI para transferir herramientas o maquinaria entre bodegas.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+.project-tag {
+    display: inline-block;
+    padding: 0.25rem 0.7rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+.project-tag--neutral { background: var(--gray-100); color: var(--gray-700); border: 1px solid var(--gray-200); }
+.project-tag--primary { background: var(--color-primary-light); color: var(--color-primary-dark); border: 1px solid #c7d2fe; }
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.28rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+.status-badge--success { background: #dcfce7; color: #15803d; }
+.status-badge--warning { background: #fef3c7; color: #92400e; }
+.status-badge--info    { background: #e0f2fe; color: #0369a1; }
+</style>
+
+{% endblock %}

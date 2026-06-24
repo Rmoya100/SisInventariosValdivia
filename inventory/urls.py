@@ -122,8 +122,11 @@ urlpatterns = [
     path('maquinarias/mantenimiento/<int:pk>/recibir/', views.recibir_maquinaria_mantenimiento, name='recibir_maquinaria_mantenimiento'),
 
     # GDI de Activos (Herramientas/Maquinaria entre bodegas)
-    path('activos/transferencias/', views.transferencia_activo_view, name='transferencias_activos'),
+    path('activos/transferencias/', views.TransferenciaActivoListView.as_view(), name='transferencias_activos'),
+    path('activos/transferencias/crear/', views.transferencia_activo_crear, name='transferencia_activo_crear'),
+    path('activos/transferencias/<int:pk>/editar/', views.transferencia_activo_editar, name='transferencia_activo_editar'),
     path('activos/transferencias/<int:pk>/recibir/', views.recibir_transferencia_activo, name='transferencia_activo_recibir'),
+    path('activos/transferencias/<int:pk>/pdf/', views.reporte_transferencia_activo_pdf, name='reporte_transferencia_activo_pdf'),
 
     # Reportes Equipos
     path('reportes/herramientas/pdf/', views.reporte_herramientas_pdf, name='reporte_herramientas_pdf'),

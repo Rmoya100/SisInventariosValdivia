@@ -1,0 +1,145 @@
+{% extends 'inventory/reportes/base_pdf.html' %}
+
+{% block title %}GDI #{{ ta.idTransferencia }} — Activos{% endblock %}
+{% block report_section %}Guía de Despacho Interna — Activos{% endblock %}
+{% block report_title %}GDI N° {{ ta.idTransferencia|stringformat:"04d" }} — Transferencia de Activos{% endblock %}
+
+{% block report_filters %}
+<div class="rpt-filters">
+    {{ ta.bodega_origen }} &nbsp;&#8594;&nbsp; {{ ta.bodega_destino }}
+    &nbsp;&#183;&nbsp; Fecha despacho: {{ ta.fecha_despacho|date:"d/m/Y" }}
+</div>
+{% endblock %}
+
+{% block content %}
+
+<table class="info-table">
+    <tr>
+        <td class="lbl">Bodega Origen</td>
+        <td class="bold">{{ ta.bodega_origen }}</td>
+        <td class="lbl">Bodega Destino</td>
+        <td class="bold">{{ ta.bodega_destino }}</td>
+    </tr>
+    <tr>
+        <td class="lbl">Despachado por</td>
+        <td>
+            {{ ta.usuario_despacha.first_name }} {{ ta.usuario_despacha.last_name }}
+            <span style="color:#94a3b8;font-size:10px;">({{ ta.usuario_despacha.username }})</span>
+        </td>
+        <td class="lbl">Recepcionado por</td>
+        <td>
+            {% if ta.usuario_recibe %}
+                {{ ta.usuario_recibe.first_name }} {{ ta.usuario_recibe.last_name }}
+                <span style="color:#94a3b8;font-size:10px;">({{ ta.usuario_recibe.username }})</span>
+            {% else %}
+                <span style="color:#94a3b8;font-style:italic;">Pendiente de recepción</span>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <td class="lbl">Fecha Despacho</td>
+        <td>{{ ta.fecha_despacho|date:"d/m/Y" }}</td>
+        <td class="lbl">Estado GDI</td>
+        <td>
+            {% if ta.estado == 'EN TRANSITO' %}
+                <span class="badge badge-warning">En Tránsito</span>
+            {% elif ta.estado == 'RECEPCION PARCIAL' %}
+                <span class="badge badge-info">Recepción Parcial</span>
+            {% else %}
+                <span class="badge badge-success">Recepción Completa</span>
+            {% endif %}
+        </td>
+    </tr>
+    {% if ta.fecha_recepcion %}
+    <tr>
+        <td class="lbl">Fecha Recepción</td>
+        <td>{{ ta.fecha_recepcion|date:"d/m/Y" }}</td>
+        <td></td><td></td>
+    </tr>
+    {% endif %}
+    {% if ta.observacion %}
+    <tr>
+        <td class="lbl">Obs. Despacho</td>
+        <td colspan="3" style="font-style:italic; color:#475569;">{{ ta.observacion }}</td>
+    </tr>
+    {% endif %}
+    {% if ta.observacion_recepcion %}
+    <tr>
+        <td class="lbl">Obs. Recepción</td>
+        <td colspan="3" style="font-style:italic; color:#475569;">{{ ta.observacion_recepcion }}</td>
+    </tr>
+    {% endif %}
+</table>
+
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Tipo</th>
+            <th>Código</th>
+            <th>Descripción del Activo</th>
+            <th class="text-center">Estado</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for d in ta.detalles_activos.all %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td>{{ d.get_tipo_activo_display }}</td>
+            <td class="mono muted">{{ d.get_codigo_display }}</td>
+            <td class="bold">{{ d.get_activo_display }}</td>
+            <td class="text-center">
+                {% if d.recibido %}
+                    <span class="badge badge-success">Recibido</span>
+                {% else %}
+                    <span class="badge badge-warning">Pendiente</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center muted" style="padding:20px;">Sin detalles registrados.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="signature-section">
+    <div class="sig-box">
+        <div class="sig-line">FIRMA DESPACHO (ORIGEN)</div>
+        <div class="sig-name">
+            {% if ta.usuario_despacha.first_name or ta.usuario_despacha.last_name %}
+                {{ ta.usuario_despacha.first_name }} {{ ta.usuario_despacha.last_name }}
+            {% else %}
+                {{ ta.usuario_despacha.username }}
+            {% endif %}
+        </div>
+        <div class="sig-role">{{ ta.bodega_origen }}</div>
+        <div class="sig-role">Fecha: {{ ta.fecha_despacho|date:"d/m/Y" }}</div>
+    </div>
+    <div class="sig-box" style="margin: 0 40px;">
+        <div class="sig-line" style="border-top-style:dashed; color:#94a3b8;">TRANSPORTISTA (OPCIONAL)</div>
+        <div class="sig-name" style="color:#94a3b8;">_____________________</div>
+        <div class="sig-role">Nombre y RUT</div>
+    </div>
+    <div class="sig-box">
+        <div class="sig-line">FIRMA RECEPCIÓN (DESTINO)</div>
+        <div class="sig-name">
+            {% if ta.usuario_recibe %}
+                {% if ta.usuario_recibe.first_name or ta.usuario_recibe.last_name %}
+                    {{ ta.usuario_recibe.first_name }} {{ ta.usuario_recibe.last_name }}
+                {% else %}
+                    {{ ta.usuario_recibe.username }}
+                {% endif %}
+            {% else %}
+                _____________________
+            {% endif %}
+        </div>
+        <div class="sig-role">{{ ta.bodega_destino }}</div>
+    </div>
+</div>
+
+<div style="margin-top:20px; padding:10px 16px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; font-size:9px; color:#64748b; text-align:center;">
+    Este documento acredita el traslado interno de activos (herramientas/maquinaria) entre bodegas de la empresa.
+    Su firma certifica conformidad con los activos indicados.
+</div>
+
+{% endblock %}

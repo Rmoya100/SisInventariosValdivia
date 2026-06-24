@@ -6,7 +6,7 @@ from .models import (
     DetalleCompra, DetalleIngreso, DetalleSalida, Trabajador, Usuario,
     Proyecto, Empresa, Transferencia, DetalleTransferencia, Bodega,
     Herramienta, Maquinaria, MantenimientoHerramienta, MantenimientoMaquinaria,
-    TransferenciaActivo, ModuloTorre, Gasto, Fase, StockProyecto, Partida
+    TransferenciaActivo, DetalleTransferenciaActivo, ModuloTorre, Gasto, Fase, StockProyecto, Partida
 )
 
 class UppercaseMixin:
@@ -695,31 +695,68 @@ class ActualizarLecturaForm(UppercaseMixin, forms.ModelForm):
 class TransferenciaActivoForm(UppercaseMixin, forms.ModelForm):
     class Meta:
         model = TransferenciaActivo
-        fields = ['bodega_origen', 'bodega_destino', 'tipo_activo', 'herramienta', 'maquinaria', 'observacion']
+        fields = ['bodega_origen', 'bodega_destino', 'observacion']
         widgets = {
             'bodega_origen': forms.Select(attrs={'class': 'form-select'}),
             'bodega_destino': forms.Select(attrs={'class': 'form-select'}),
-            'tipo_activo': forms.Select(attrs={'class': 'form-select', 'id': 'id_tipo_activo'}),
-            'herramienta': forms.Select(attrs={'class': 'form-select', 'id': 'id_herramienta_ta'}),
-            'maquinaria': forms.Select(attrs={'class': 'form-select', 'id': 'id_maquinaria_ta'}),
             'observacion': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
         }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        origen = cleaned_data.get('bodega_origen')
+        destino = cleaned_data.get('bodega_destino')
+        if origen and destino and origen == destino:
+            raise forms.ValidationError('La bodega de origen y destino no pueden ser la misma.')
+        return cleaned_data
+
+
+class DetalleTransferenciaActivoForm(forms.ModelForm):
+    class Meta:
+        model = DetalleTransferenciaActivo
+        fields = ['tipo_activo', 'herramienta', 'maquinaria']
+        widgets = {
+            'tipo_activo': forms.Select(attrs={'class': 'form-select tipo-activo-select'}),
+            'herramienta': forms.Select(attrs={'class': 'form-select herramienta-select'}),
+            'maquinaria': forms.Select(attrs={'class': 'form-select maquinaria-select'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['herramienta'].required = False
+        self.fields['maquinaria'].required = False
+        self.fields['herramienta'].empty_label = '— Seleccionar herramienta —'
+        self.fields['maquinaria'].empty_label = '— Seleccionar maquinaria —'
 
     def clean(self):
         cleaned_data = super().clean()
         tipo = cleaned_data.get('tipo_activo')
         herramienta = cleaned_data.get('herramienta')
         maquinaria = cleaned_data.get('maquinaria')
-        origen = cleaned_data.get('bodega_origen')
-        destino = cleaned_data.get('bodega_destino')
-
-        if origen and destino and origen == destino:
-            raise forms.ValidationError('La bodega de origen y destino no pueden ser la misma.')
         if tipo == 'HERRAMIENTA' and not herramienta:
             raise forms.ValidationError('Debes seleccionar una herramienta.')
         if tipo == 'MAQUINARIA' and not maquinaria:
             raise forms.ValidationError('Debes seleccionar una maquinaria.')
         return cleaned_data
+
+
+DetalleTransferenciaActivoFormSet = forms.inlineformset_factory(
+    TransferenciaActivo,
+    DetalleTransferenciaActivo,
+    form=DetalleTransferenciaActivoForm,
+    extra=1,
+    can_delete=True,
+)
+
+
+class DetalleTransferenciaActivoRecibirForm(forms.ModelForm):
+    class Meta:
+        model = DetalleTransferenciaActivo
+        fields = ['id', 'recibido']
+        widgets = {
+            'id': forms.HiddenInput(),
+            'recibido': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
 
 
 class GastoForm(UppercaseMixin, forms.ModelForm):

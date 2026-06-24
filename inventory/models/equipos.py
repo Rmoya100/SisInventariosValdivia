@@ -80,7 +80,11 @@ class MantenimientoMaquinaria(models.Model):
 
 
 class TransferenciaActivo(models.Model):
-    ESTADO_CHOICES = [('EN TRANSITO', 'En Tránsito'), ('RECEPCION OK', 'Recepción OK')]
+    ESTADO_CHOICES = [
+        ('EN TRANSITO', 'En Tránsito'),
+        ('RECEPCION PARCIAL', 'Recepción Parcial'),
+        ('RECEPCION OK', 'Recepción OK'),
+    ]
     TIPO_ACTIVO_CHOICES = [('HERRAMIENTA', 'Herramienta'), ('MAQUINARIA', 'Maquinaria')]
     idTransferencia = models.AutoField(primary_key=True)
     bodega_origen = models.ForeignKey(Bodega, on_delete=models.CASCADE, related_name='despachos_activos')
@@ -88,7 +92,8 @@ class TransferenciaActivo(models.Model):
     usuario_despacha = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='gdi_activos_despachados')
     fecha_despacho = models.DateField(auto_now_add=True)
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='EN TRANSITO')
-    tipo_activo = models.CharField(max_length=20, choices=TIPO_ACTIVO_CHOICES)
+    # Legacy fields kept for backward compat with old single-asset records
+    tipo_activo = models.CharField(max_length=20, choices=TIPO_ACTIVO_CHOICES, null=True, blank=True)
     herramienta = models.ForeignKey(Herramienta, on_delete=models.CASCADE, null=True, blank=True)
     maquinaria = models.ForeignKey(Maquinaria, on_delete=models.CASCADE, null=True, blank=True)
     observacion = models.TextField(blank=True, null=True)
@@ -96,5 +101,47 @@ class TransferenciaActivo(models.Model):
     fecha_recepcion = models.DateField(null=True, blank=True)
     observacion_recepcion = models.TextField(blank=True, null=True)
 
+    def actualizar_estado(self):
+        detalles = self.detalles_activos.all()
+        if not detalles.exists():
+            return
+        total = detalles.count()
+        recibidos = detalles.filter(recibido=True).count()
+        if recibidos == 0:
+            nuevo = 'EN TRANSITO'
+        elif recibidos < total:
+            nuevo = 'RECEPCION PARCIAL'
+        else:
+            nuevo = 'RECEPCION OK'
+        if self.estado != nuevo:
+            self.estado = nuevo
+            self.save(update_fields=['estado'])
+
     def __str__(self):
         return f"GDI {self.idTransferencia}: {self.bodega_origen} -> {self.bodega_destino}"
+
+
+class DetalleTransferenciaActivo(models.Model):
+    TIPO_ACTIVO_CHOICES = [('HERRAMIENTA', 'Herramienta'), ('MAQUINARIA', 'Maquinaria')]
+    transferencia = models.ForeignKey(TransferenciaActivo, on_delete=models.CASCADE, related_name='detalles_activos')
+    tipo_activo = models.CharField(max_length=20, choices=TIPO_ACTIVO_CHOICES)
+    herramienta = models.ForeignKey(Herramienta, on_delete=models.SET_NULL, null=True, blank=True, related_name='detalles_transferencia')
+    maquinaria = models.ForeignKey(Maquinaria, on_delete=models.SET_NULL, null=True, blank=True, related_name='detalles_transferencia')
+    recibido = models.BooleanField(default=False)
+
+    def get_activo_display(self):
+        if self.tipo_activo == 'HERRAMIENTA' and self.herramienta:
+            return self.herramienta.nomHerramienta
+        if self.tipo_activo == 'MAQUINARIA' and self.maquinaria:
+            return str(self.maquinaria)
+        return '—'
+
+    def get_codigo_display(self):
+        if self.tipo_activo == 'HERRAMIENTA' and self.herramienta:
+            return self.herramienta.codigo
+        if self.tipo_activo == 'MAQUINARIA' and self.maquinaria:
+            return self.maquinaria.patente_o_codigo
+        return '—'
+
+    def __str__(self):
+        return f"Detalle GDI {self.transferencia_id}: {self.get_activo_display()}"

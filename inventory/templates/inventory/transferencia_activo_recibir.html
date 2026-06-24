@@ -2,36 +2,21 @@
 {% block title %}Recepcionar GDI #{{ ta.idTransferencia }}{% endblock %}
 {% block content %}
 <div class="d-flex align-items-center gap-3 mb-4">
-    <a href="{% url 'transferencias_activos' %}" class="btn btn-light shadow-sm rounded-circle d-flex align-items-center justify-content-center" style="width:45px;height:45px;" title="Volver"><i class="fa-solid fa-arrow-left"></i></a>
-    <h2 class="fw-bold text-info mb-0">Recepcionar GDI #{{ ta.idTransferencia }}</h2>
+    <a href="{% url 'transferencias_activos' %}" class="btn rounded-circle" title="Volver">
+        <i class="fa-solid fa-arrow-left"></i>
+    </a>
+    <h2 class="fw-bold mb-0" style="font-size:1.35rem;">Recepcionar GDI #{{ ta.idTransferencia }} (GRI)</h2>
 </div>
 
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card shadow border-0 rounded-4">
-            <div class="card-body p-4">
-                <h5 class="fw-bold text-success mb-3"><i class="fa-solid fa-truck-ramp-box me-2"></i>Confirmar Recepción (GRI)</h5>
-
-                <table class="table table-sm mb-4">
+<div class="row g-4">
+    <!-- Info de la GDI -->
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header fw-semibold">Información de la GDI</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
                     <tr>
-                        <th class="text-muted" style="width:40%">Tipo de activo</th>
-                        <td>
-                            {% if ta.tipo_activo == 'HERRAMIENTA' %}
-                                <span class="badge bg-info">Herramienta</span>
-                            {% else %}
-                                <span class="badge bg-secondary">Maquinaria</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Activo</th>
-                        <td><strong>
-                            {% if ta.herramienta %}{{ ta.herramienta.nomHerramienta }} ({{ ta.herramienta.codigo }}){% endif %}
-                            {% if ta.maquinaria %}{{ ta.maquinaria.get_tipo_maquina_display }} - {{ ta.maquinaria.patente_o_codigo }}{% endif %}
-                        </strong></td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Bodega origen</th>
+                        <th class="text-muted" style="width:45%">Bodega origen</th>
                         <td>{{ ta.bodega_origen }}</td>
                     </tr>
                     <tr>
@@ -44,35 +29,86 @@
                     </tr>
                     <tr>
                         <th class="text-muted">Despachado por</th>
-                        <td>{{ ta.usuario_despacha.username }}</td>
+                        <td>{{ ta.usuario_despacha.get_full_name|default:ta.usuario_despacha.username }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Estado actual</th>
+                        <td>
+                            {% if ta.estado == 'RECEPCION PARCIAL' %}
+                                <span class="badge bg-warning text-dark">Parcial</span>
+                            {% else %}
+                                <span class="badge bg-info">En Tránsito</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% if ta.observacion %}
                     <tr>
-                        <th class="text-muted">Observaciones</th>
-                        <td>{{ ta.observacion }}</td>
+                        <th class="text-muted">Obs. despacho</th>
+                        <td><em>{{ ta.observacion }}</em></td>
                     </tr>
                     {% endif %}
                 </table>
+            </div>
+        </div>
+    </div>
 
+    <!-- Tabla de activos a recepcionar -->
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header fw-semibold">Activos — marcar los recepcionados</div>
+            <div class="card-body p-0">
                 <form method="POST">
                     {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="observacion_recepcion" class="form-label fw-semibold text-muted">Observaciones de recepción <span class="fw-normal">(opcional)</span></label>
-                        <textarea id="observacion_recepcion" name="observacion_recepcion" rows="3"
-                            class="form-control"
-                            placeholder="Ej: Recibido en buen estado, sin daños aparentes..."></textarea>
+                    {{ formset.management_form }}
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Activo</th>
+                                    <th>Código</th>
+                                    <th class="text-center" style="width:110px;">Recibido</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for f, d in formset_zip %}
+                                <tr class="{% if d.recibido %}table-success{% endif %}">
+                                    <td>
+                                        {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+                                        {% if d.tipo_activo == 'HERRAMIENTA' %}
+                                            <span class="badge bg-info">Herramienta</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Maquinaria</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><strong>{{ d.get_activo_display }}</strong></td>
+                                    <td class="text-muted small font-monospace">{{ d.get_codigo_display }}</td>
+                                    <td class="text-center">
+                                        {{ f.recibido }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
 
-                    <div class="alert alert-warning rounded-3 border-0">
-                        <i class="fa-solid fa-triangle-exclamation me-2"></i>
-                        Al confirmar, el activo quedará registrado en <strong>{{ ta.bodega_destino }}</strong> y la GDI pasará a estado <strong>Recepción OK</strong>.
-                    </div>
-
-                    <div class="d-flex gap-3 justify-content-end">
-                        <a href="{% url 'transferencias_activos' %}" class="btn btn-outline-secondary rounded-pill px-4">Cancelar</a>
-                        <button type="submit" class="btn btn-success rounded-pill px-5 fw-bold">
-                            <i class="fa-solid fa-check me-2"></i>Confirmar Recepción
-                        </button>
+                    <div class="p-3">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-muted">Observaciones de recepción <span class="fw-normal">(opcional)</span></label>
+                            <textarea name="observacion_recepcion" rows="2" class="form-control"
+                                placeholder="Ej: Recibido en buen estado...">{{ ta.observacion_recepcion|default:"" }}</textarea>
+                        </div>
+                        <div class="alert alert-warning small mb-3">
+                            <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                            Los activos marcados quedarán registrados en <strong>{{ ta.bodega_destino }}</strong>.
+                        </div>
+                        <div class="d-flex gap-3 justify-content-end">
+                            <a href="{% url 'transferencias_activos' %}" class="btn btn-outline-secondary rounded-pill px-4">Cancelar</a>
+                            <button type="submit" class="btn btn-success rounded-pill px-5 fw-bold">
+                                <i class="fa-solid fa-check me-2"></i>Confirmar Recepción
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>

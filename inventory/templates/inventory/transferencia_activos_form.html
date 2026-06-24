@@ -1,0 +1,243 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{% url 'transferencias_activos' %}" class="btn rounded-circle" title="Volver">
+        <i class="fa-solid fa-arrow-left"></i>
+    </a>
+    <h2 class="fw-bold mb-0" style="font-size:1.35rem;">{{ titulo }}</h2>
+</div>
+
+<form method="POST" id="gdi-form">
+    {% csrf_token %}
+    {{ detalles.management_form }}
+
+    <div class="row g-4">
+        <!-- Cabecera -->
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header fw-semibold">Datos de la GDI</div>
+                <div class="card-body">
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger small">{{ form.non_field_errors }}</div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Bodega Origen</label>
+                        {{ form.bodega_origen }}
+                        {% if form.bodega_origen.errors %}<div class="text-danger small">{{ form.bodega_origen.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Bodega Destino</label>
+                        {{ form.bodega_destino }}
+                        {% if form.bodega_destino.errors %}<div class="text-danger small">{{ form.bodega_destino.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Observaciones</label>
+                        {{ form.observacion }}
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 fw-semibold">
+                        <i class="fa-solid fa-paper-plane me-2"></i>
+                        {% if ta %}Guardar Cambios{% else %}Crear GDI{% endif %}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detalle de activos -->
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span class="fw-semibold">Activos a Transferir</span>
+                    <button type="button" class="btn btn-sm btn-outline-success fw-semibold" id="btn-agregar">
+                        <i class="fa-solid fa-plus me-1"></i>Agregar activo
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-0" id="tabla-detalles">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:140px;">Tipo</th>
+                                    <th>Activo</th>
+                                    <th style="width:70px;" class="text-center">Elim.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="formset-body">
+                                {% for f in detalles %}
+                                <tr class="fila-detalle {% if f.DELETE.value %}opacity-50{% endif %}">
+                                    <td>
+                                        {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+                                        {% if f.non_field_errors %}<div class="text-danger small">{{ f.non_field_errors }}</div>{% endif %}
+                                        {{ f.tipo_activo }}
+                                        {% if f.tipo_activo.errors %}<div class="text-danger small">{{ f.tipo_activo.errors }}</div>{% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="herramienta-wrap">{{ f.herramienta }}</div>
+                                        <div class="maquinaria-wrap" style="display:none;">{{ f.maquinaria }}</div>
+                                        <div class="badge-bodega text-muted small mt-1"></div>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="form-check d-flex justify-content-center">
+                                            {{ f.DELETE }}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Template de fila vacía para clonar -->
+<table style="display:none;">
+    <tbody>
+        <tr class="fila-detalle" id="fila-template">
+            <td>
+                <select name="detalles-__prefix__-tipo_activo" class="form-select tipo-activo-select">
+                    <option value="HERRAMIENTA">Herramienta</option>
+                    <option value="MAQUINARIA">Maquinaria</option>
+                </select>
+            </td>
+            <td>
+                <div class="herramienta-wrap">
+                    <select name="detalles-__prefix__-herramienta" class="form-select herramienta-select">
+                        <option value="">— Seleccionar herramienta —</option>
+                        {% for h in herramientas_json %}
+                        <option value="{{ h.idHerramienta }}" data-bodega="{{ h.bodega_actual_id }}">{{ h.nomHerramienta }} ({{ h.codigo }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="maquinaria-wrap" style="display:none;">
+                    <select name="detalles-__prefix__-maquinaria" class="form-select maquinaria-select">
+                        <option value="">— Seleccionar maquinaria —</option>
+                        {% for m in maquinarias_json %}
+                        <option value="{{ m.idMaquinaria }}" data-bodega="{{ m.bodega_actual_id }}">{{ m.patente_o_codigo }} — {{ m.tipo_maquina }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="badge-bodega text-muted small mt-1"></div>
+                <input type="hidden" name="detalles-__prefix__-id" value="">
+                <input type="hidden" name="detalles-__prefix__-DELETE" value="">
+            </td>
+            <td class="text-center">
+                <input type="checkbox" name="detalles-__prefix__-DELETE" class="form-check-input delete-check">
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+<!-- Datos JSON para JS -->
+<script id="herramientas-data" type="application/json">{{ herramientas_json|safe }}</script>
+<script id="maquinarias-data" type="application/json">{{ maquinarias_json|safe }}</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const herramientas = JSON.parse(document.getElementById('herramientas-data').textContent);
+    const maquinarias  = JSON.parse(document.getElementById('maquinarias-data').textContent);
+
+    // Map bodega by id for quick lookup
+    const herrByBodega = {};
+    herramientas.forEach(h => {
+        const b = h.bodega_actual_id || 'none';
+        if (!herrByBodega[b]) herrByBodega[b] = [];
+        herrByBodega[b].push(h);
+    });
+    const maqByBodega = {};
+    maquinarias.forEach(m => {
+        const b = m.bodega_actual_id || 'none';
+        if (!maqByBodega[b]) maqByBodega[b] = [];
+        maqByBodega[b].push(m);
+    });
+
+    function getBodegaOrigen() {
+        const sel = document.getElementById('id_bodega_origen');
+        return sel ? sel.value : null;
+    }
+
+    function buildOptions(selectEl, items, valueKey, labelFn, emptyLabel) {
+        const current = selectEl.value;
+        selectEl.innerHTML = `<option value="">${emptyLabel}</option>`;
+        items.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item[valueKey];
+            opt.textContent = labelFn(item);
+            if (String(item[valueKey]) === String(current)) opt.selected = true;
+            selectEl.appendChild(opt);
+        });
+    }
+
+    function updateDropdowns(fila) {
+        const bodegaId = getBodegaOrigen();
+        const herrSel = fila.querySelector('.herramienta-select');
+        const maqSel  = fila.querySelector('.maquinaria-select');
+        const tipo    = fila.querySelector('.tipo-activo-select').value;
+
+        const herrItems = bodegaId ? (herrByBodega[bodegaId] || []) : herramientas;
+        const maqItems  = bodegaId ? (maqByBodega[bodegaId]  || []) : maquinarias;
+
+        if (herrSel) buildOptions(herrSel, herrItems, 'idHerramienta', h => `${h.nomHerramienta} (${h.codigo})`, '— Seleccionar herramienta —');
+        if (maqSel)  buildOptions(maqSel,  maqItems,  'idMaquinaria',  m => `${m.patente_o_codigo} — ${m.tipo_maquina}`, '— Seleccionar maquinaria —');
+
+        toggleActivo(fila, tipo);
+    }
+
+    function toggleActivo(fila, tipo) {
+        const hw = fila.querySelector('.herramienta-wrap');
+        const mw = fila.querySelector('.maquinaria-wrap');
+        if (!hw || !mw) return;
+        hw.style.display = tipo === 'HERRAMIENTA' ? '' : 'none';
+        mw.style.display = tipo === 'MAQUINARIA'  ? '' : 'none';
+    }
+
+    function initFila(fila) {
+        const tipoSel = fila.querySelector('.tipo-activo-select');
+        if (!tipoSel) return;
+        tipoSel.addEventListener('change', () => { toggleActivo(fila, tipoSel.value); });
+        toggleActivo(fila, tipoSel.value);
+
+        const delCheck = fila.querySelector('.delete-check');
+        if (delCheck) {
+            delCheck.addEventListener('change', () => {
+                fila.style.opacity = delCheck.checked ? '0.4' : '';
+            });
+        }
+    }
+
+    // Init existing rows
+    document.querySelectorAll('#formset-body .fila-detalle').forEach(fila => {
+        initFila(fila);
+        updateDropdowns(fila);
+    });
+
+    // Update all rows when bodega origen changes
+    const bodegaOrigenSel = document.getElementById('id_bodega_origen');
+    if (bodegaOrigenSel) {
+        bodegaOrigenSel.addEventListener('change', () => {
+            document.querySelectorAll('#formset-body .fila-detalle').forEach(fila => updateDropdowns(fila));
+        });
+    }
+
+    // Add row
+    document.getElementById('btn-agregar').addEventListener('click', function () {
+        const mgmt = document.getElementById('id_detalles-TOTAL_FORMS');
+        const idx  = parseInt(mgmt.value);
+        const template = document.getElementById('fila-template').cloneNode(true);
+        template.removeAttribute('id');
+        template.innerHTML = template.innerHTML.replace(/__prefix__/g, idx);
+        document.getElementById('formset-body').appendChild(template);
+        mgmt.value = idx + 1;
+        initFila(template);
+        updateDropdowns(template);
+    });
+});
+</script>
+{% endblock %}

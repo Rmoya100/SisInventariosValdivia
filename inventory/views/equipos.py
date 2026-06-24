@@ -1,15 +1,22 @@
+import datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.views.generic import ListView
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.forms import modelformset_factory
 from ..decorators import permission_required
 from ..perms import user_has_custom_perm
 from django.db.models import Q
-from ..models import Herramienta, MantenimientoHerramienta, Maquinaria, MantenimientoMaquinaria, TransferenciaActivo
+from ..models import (
+    Herramienta, MantenimientoHerramienta, Maquinaria, MantenimientoMaquinaria,
+    TransferenciaActivo, DetalleTransferenciaActivo
+)
 from ..forms import (
     HerramientaForm, MantenimientoHerramientaForm, RecepcionHerramientaForm,
     MaquinariaForm, ActualizarLecturaForm, MantenimientoMaquinariaForm, RecepcionMaquinariaForm,
-    TransferenciaActivoForm
+    TransferenciaActivoForm, DetalleTransferenciaActivoFormSet, DetalleTransferenciaActivoRecibirForm
 )
 
 def _can(user, perm: str) -> bool:
@@ -243,51 +250,158 @@ def recibir_maquinaria_mantenimiento(request, pk):
     })
 
 
+class TransferenciaActivoListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    permission_required = 'inventory.view_transferenciaactivo'
+    model = TransferenciaActivo
+    template_name = 'inventory/transferencia_activos_list.html'
+    context_object_name = 'transferencias'
+
+    def get_queryset(self):
+        return TransferenciaActivo.objects.select_related(
+            'bodega_origen', 'bodega_destino', 'usuario_despacha', 'usuario_recibe'
+        ).prefetch_related('detalles_activos__herramienta', 'detalles_activos__maquinaria').order_by('-fecha_despacho')
+
+
+def _activos_json():
+    herramientas = list(Herramienta.objects.select_related('bodega_actual').values(
+        'idHerramienta', 'nomHerramienta', 'codigo', 'bodega_actual_id', 'en_reparacion'
+    ))
+    maquinarias = list(Maquinaria.objects.select_related('bodega_actual').values(
+        'idMaquinaria', 'patente_o_codigo', 'tipo_maquina', 'bodega_actual_id', 'en_reparacion'
+    ))
+    return herramientas, maquinarias
+
+
 @login_required
-@permission_required('inventory.view_transferenciaactivo', raise_exception=True)
-def transferencia_activo_view(request):
-    transferencias = TransferenciaActivo.objects.select_related(
-        'bodega_origen', 'bodega_destino', 'herramienta', 'maquinaria', 'usuario_despacha', 'usuario_recibe'
-    ).order_by('-fecha_despacho')
-    if request.method == 'POST' and _can(request.user, 'inventory.add_transferenciaactivo'):
+@permission_required('inventory.add_transferenciaactivo', raise_exception=True)
+def transferencia_activo_crear(request):
+    herramientas, maquinarias = _activos_json()
+    if request.method == 'POST':
         form = TransferenciaActivoForm(request.POST)
-        if form.is_valid():
+        formset = DetalleTransferenciaActivoFormSet(request.POST, prefix='detalles')
+        if form.is_valid() and formset.is_valid():
+            bodega_origen = form.cleaned_data['bodega_origen']
+            # Validate each asset belongs to origin warehouse
+            hay_error = False
+            for f in formset.forms:
+                if not f.cleaned_data or f.cleaned_data.get('DELETE'):
+                    continue
+                tipo = f.cleaned_data.get('tipo_activo')
+                herr = f.cleaned_data.get('herramienta')
+                maq = f.cleaned_data.get('maquinaria')
+                activo = herr if tipo == 'HERRAMIENTA' else maq
+                if activo and activo.bodega_actual != bodega_origen:
+                    f.add_error(None, f'"{activo}" no está en la bodega de origen ({bodega_origen}).')
+                    hay_error = True
+                if activo and activo.en_reparacion:
+                    f.add_error(None, f'"{activo}" está en reparación y no puede ser transferida.')
+                    hay_error = True
+            if hay_error:
+                return render(request, 'inventory/transferencia_activos_form.html', {
+                    'form': form, 'detalles': formset,
+                    'herramientas_json': herramientas, 'maquinarias_json': maquinarias,
+                    'titulo': 'Nueva GDI de Activos',
+                })
             ta = form.save(commit=False)
             ta.usuario_despacha = request.user
             ta.estado = 'EN TRANSITO'
             ta.save()
-            messages.success(request, f'GDI #{ta.idTransferencia} registrada. Quedó en tránsito hasta ser recepcionada.')
+            formset.instance = ta
+            formset.save()
+            messages.success(request, f'GDI #{ta.idTransferencia} creada. Quedó en tránsito.')
             return redirect('transferencias_activos')
-        else:
-            messages.error(request, 'Revisa los datos del formulario.')
     else:
         form = TransferenciaActivoForm()
-    return render(request, 'inventory/transferencia_activos.html', {
-        'transferencias': transferencias, 'form': form
+        formset = DetalleTransferenciaActivoFormSet(prefix='detalles')
+    return render(request, 'inventory/transferencia_activos_form.html', {
+        'form': form, 'detalles': formset,
+        'herramientas_json': herramientas, 'maquinarias_json': maquinarias,
+        'titulo': 'Nueva GDI de Activos',
+    })
+
+
+@login_required
+@permission_required('inventory.change_transferenciaactivo', raise_exception=True)
+def transferencia_activo_editar(request, pk):
+    ta = get_object_or_404(TransferenciaActivo, pk=pk)
+    if ta.estado == 'RECEPCION OK':
+        messages.warning(request, f'La GDI #{ta.idTransferencia} ya fue completamente recepcionada y no puede editarse.')
+        return redirect('transferencias_activos')
+    herramientas, maquinarias = _activos_json()
+    if request.method == 'POST':
+        form = TransferenciaActivoForm(request.POST, instance=ta)
+        formset = DetalleTransferenciaActivoFormSet(request.POST, instance=ta, prefix='detalles')
+        if form.is_valid() and formset.is_valid():
+            bodega_origen = form.cleaned_data['bodega_origen']
+            hay_error = False
+            for f in formset.forms:
+                if not f.cleaned_data or f.cleaned_data.get('DELETE'):
+                    continue
+                tipo = f.cleaned_data.get('tipo_activo')
+                herr = f.cleaned_data.get('herramienta')
+                maq = f.cleaned_data.get('maquinaria')
+                activo = herr if tipo == 'HERRAMIENTA' else maq
+                if activo and activo.bodega_actual != bodega_origen:
+                    f.add_error(None, f'"{activo}" no está en la bodega de origen ({bodega_origen}).')
+                    hay_error = True
+            if hay_error:
+                return render(request, 'inventory/transferencia_activos_form.html', {
+                    'form': form, 'detalles': formset, 'ta': ta,
+                    'herramientas_json': herramientas, 'maquinarias_json': maquinarias,
+                    'titulo': f'Editar GDI #{ta.idTransferencia}',
+                })
+            form.save()
+            formset.save()
+            messages.success(request, f'GDI #{ta.idTransferencia} actualizada.')
+            return redirect('transferencias_activos')
+    else:
+        form = TransferenciaActivoForm(instance=ta)
+        formset = DetalleTransferenciaActivoFormSet(instance=ta, prefix='detalles')
+    return render(request, 'inventory/transferencia_activos_form.html', {
+        'form': form, 'detalles': formset, 'ta': ta,
+        'herramientas_json': herramientas, 'maquinarias_json': maquinarias,
+        'titulo': f'Editar GDI #{ta.idTransferencia}',
     })
 
 
 @login_required
 @permission_required('inventory.change_transferenciaactivo', raise_exception=True)
 def recibir_transferencia_activo(request, pk):
-    import datetime
     ta = get_object_or_404(TransferenciaActivo, pk=pk)
     if ta.estado == 'RECEPCION OK':
-        messages.warning(request, f'La GDI #{ta.idTransferencia} ya fue recepcionada.')
+        messages.warning(request, f'La GDI #{ta.idTransferencia} ya fue completamente recepcionada.')
         return redirect('transferencias_activos')
+
+    detalles = ta.detalles_activos.select_related('herramienta', 'maquinaria').all()
+    RecibirFormSet = modelformset_factory(
+        DetalleTransferenciaActivo,
+        form=DetalleTransferenciaActivoRecibirForm,
+        extra=0,
+    )
+
     if request.method == 'POST':
-        if ta.tipo_activo == 'HERRAMIENTA' and ta.herramienta:
-            ta.herramienta.bodega_actual = ta.bodega_destino
-            ta.herramienta.save(update_fields=['bodega_actual'])
-        elif ta.tipo_activo == 'MAQUINARIA' and ta.maquinaria:
-            ta.maquinaria.bodega_actual = ta.bodega_destino
-            ta.maquinaria.save(update_fields=['bodega_actual'])
-        ta.estado = 'RECEPCION OK'
-        ta.usuario_recibe = request.user
-        ta.fecha_recepcion = datetime.date.today()
-        ta.observacion_recepcion = request.POST.get('observacion_recepcion', '').strip() or None
-        ta.save(update_fields=['estado', 'usuario_recibe', 'fecha_recepcion', 'observacion_recepcion'])
-        activo = ta.herramienta.nomHerramienta if ta.herramienta else ta.maquinaria.patente_o_codigo
-        messages.success(request, f'GRI registrada: "{activo}" ahora está en {ta.bodega_destino}.')
-        return redirect('transferencias_activos')
-    return render(request, 'inventory/transferencia_activo_recibir.html', {'ta': ta})
+        formset = RecibirFormSet(request.POST, queryset=detalles)
+        if formset.is_valid():
+            for f in formset.forms:
+                detalle = f.save(commit=False)
+                if detalle.recibido:
+                    activo = detalle.herramienta if detalle.tipo_activo == 'HERRAMIENTA' else detalle.maquinaria
+                    if activo:
+                        activo.bodega_actual = ta.bodega_destino
+                        activo.save(update_fields=['bodega_actual'])
+                detalle.save()
+
+            ta.usuario_recibe = request.user
+            ta.fecha_recepcion = datetime.date.today()
+            ta.observacion_recepcion = request.POST.get('observacion_recepcion', '').strip() or None
+            ta.save(update_fields=['usuario_recibe', 'fecha_recepcion', 'observacion_recepcion'])
+            ta.actualizar_estado()
+            messages.success(request, f'GRI registrada para GDI #{ta.idTransferencia}. Estado: {ta.get_estado_display()}.')
+            return redirect('transferencias_activos')
+    else:
+        formset = RecibirFormSet(queryset=detalles)
+
+    return render(request, 'inventory/transferencia_activo_recibir.html', {
+        'ta': ta, 'formset': formset, 'detalles': detalles,
+        'formset_zip': list(zip(formset.forms, detalles)),
+    })

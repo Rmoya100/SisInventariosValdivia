@@ -13,7 +13,7 @@ from openpyxl import Workbook
 from ..models import (
     OrdenCompra, Ingreso, Salida, Producto, Proveedor, Categoria, Empresa, Transferencia,
     StockProyecto, DetalleIngreso, DetalleSalida, Herramienta, Maquinaria, Proyecto,
-    Bodega, DetalleTransferencia, ModuloTorre, Gasto, Fase
+    Bodega, DetalleTransferencia, ModuloTorre, Gasto, Fase, TransferenciaActivo
 )
 
 
@@ -151,6 +151,19 @@ def reporte_transferencia_pdf(request, pk):
         'empresa': empresa,
     }
     return render(request, 'inventory/reportes/transferencia.html', context)
+
+
+@login_required
+@permission_required('inventory.view_transferenciaactivo', raise_exception=True)
+def reporte_transferencia_activo_pdf(request, pk):
+    ta = get_object_or_404(
+        TransferenciaActivo.objects.prefetch_related(
+            'detalles_activos__herramienta', 'detalles_activos__maquinaria'
+        ).select_related('bodega_origen', 'bodega_destino', 'usuario_despacha', 'usuario_recibe'),
+        pk=pk,
+    )
+    empresa = Empresa.objects.first()
+    return render(request, 'inventory/reportes/transferencia_activos.html', {'ta': ta, 'empresa': empresa})
 
 @login_required
 @permission_required('inventory.view_ordencompra', raise_exception=True)

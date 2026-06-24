@@ -32,7 +32,7 @@ from .equipos import (
     mantenimiento_herramienta_view, recibir_herramienta_mantenimiento,
     maquinaria_view, maquinaria_editar, maquinaria_eliminar, actualizar_lectura_maquinaria,
     mantenimiento_maquinaria_view, recibir_maquinaria_mantenimiento,
-    transferencia_activo_view, recibir_transferencia_activo
+    TransferenciaActivoListView, transferencia_activo_crear, transferencia_activo_editar, recibir_transferencia_activo
 )
 from .reportes import (
     reporte_compras_pdf, reporte_oc_pendientes_pdf, reporte_ingresos_pdf, reporte_ingreso_detail_pdf, reporte_salidas_pdf,
@@ -46,4 +46,5 @@ from .reportes import (
     reporte_gasto_modulo_torre_list_view, reporte_gasto_modulo_torre_pdf, exportar_gasto_modulo_torre_excel,
     reporte_movimientos_usuario_list_view,
     reporte_gastos_list_view, reporte_gastos_pdf, exportar_gastos_excel,
+    reporte_transferencia_activo_pdf,
 )
