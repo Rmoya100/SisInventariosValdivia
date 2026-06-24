@@ -37,6 +37,7 @@
                                 <td class="text-center">
                                     <input class="form-check-input" type="checkbox" name="{% if m.id == 'tra' %}tra_recibir{% else %}{{ m.id }}_editar{% endif %}"
                                     {% if m.id == 'cat' and p.cat_editar or m.id == 'prod' and p.prod_editar or m.id == 'prov' and p.prov_editar or m.id == 'ord' and p.ord_editar or m.id == 'ing' and p.ing_editar or m.id == 'sal' and p.sal_editar or m.id == 'pro' and p.pro_editar or m.id == 'tra' and p.tra_recibir or m.id == 'trab' and p.trab_editar or m.id == 'herr' and p.herr_editar or m.id == 'mant_herr' and p.mant_herr_editar or m.id == 'maq' and p.maq_editar or m.id == 'mant_maq' and p.mant_maq_editar or m.id == 'gdi' and p.gdi_editar or m.id == 'gasto' and p.gasto_editar %}checked{% endif %}>
+                                    {% if m.id == 'tra' %}<small class="d-block text-muted" style="font-size:0.65rem;">Recibir</small>{% endif %}
                                 </td>
                                 <td class="text-center">
                                     <input class="form-check-input" type="checkbox" name="{{ m.id }}_eliminar"

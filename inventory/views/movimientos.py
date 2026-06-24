@@ -4,6 +4,7 @@ from django.views.generic import ListView, CreateView, UpdateView
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from ..mixins import AdminOrPermissionRequiredMixin as PermissionRequiredMixin
+from ..perms import user_has_custom_perm
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.db import transaction
@@ -815,7 +816,7 @@ class TransferenciaUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Updat
 def recibir_transferencia(request, pk):
     transferencia = get_object_or_404(Transferencia, pk=pk)
     
-    if not (request.user.es_admin or request.user.has_perm('inventory.change_transferencia')):
+    if not (request.user.es_admin or user_has_custom_perm(request.user, 'inventory.change_transferencia')):
         messages.error(request, 'No tienes permiso para recibir transferencias.')
         return redirect('index')
 
@@ -886,7 +887,7 @@ def trazabilidad_list(request):
     from django.core.paginator import Paginator
     from ..models import Bodega
 
-    if not (request.user.es_admin or request.user.has_perm('inventory.view_producto')):
+    if not (request.user.es_admin or user_has_custom_perm(request.user, 'inventory.view_producto')):
         messages.error(request, 'No tienes permisos para ver esto.')
         return redirect('index')
 
