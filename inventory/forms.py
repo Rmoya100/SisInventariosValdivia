@@ -389,6 +389,8 @@ class SalidaForm(UppercaseMixin, forms.ModelForm):
                 empty_label='— Seleccionar Bodega —',
                 required=not bool(self.user and self.user.get_proyecto_movimiento()),
             )
+            if self.instance and self.instance.pk:
+                self.initial['bodega'] = self.instance.bodega_id
 
 class IngresoForm(UppercaseMixin, forms.ModelForm):
     class Meta:

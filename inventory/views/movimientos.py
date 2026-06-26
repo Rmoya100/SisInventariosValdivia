@@ -199,12 +199,6 @@ class SalidaUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
     template_name = 'inventory/salida_form.html'
     success_url = reverse_lazy('salidas')
 
-    def get_form(self, form_class=None):
-        form = super().get_form(form_class)
-        if 'bodega' in form.fields:
-            form.fields['bodega'].disabled = True
-        return form
-
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
