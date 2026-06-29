@@ -7,7 +7,7 @@ def permission_required(perm, login_url=None, raise_exception=False):
     return permission_or_admin(perm)
 from django.contrib import messages
 from django.http import HttpResponse
-from django.db.models import Q, Sum, Max
+from django.db.models import Q, Sum, Max, DecimalField
 from django.db.models.functions import Coalesce
 from openpyxl import Workbook
 from ..models import (
@@ -275,8 +275,8 @@ def reporte_movimiento_general_list_view(request):
     if q:
         productos = productos.filter(nombre__icontains=q)
 
-    ingresos = DetalleIngreso.objects.values('producto').annotate(total_ing=Coalesce(Sum('cantidad'), 0))
-    salidas = DetalleSalida.objects.values('producto').annotate(total_sal=Coalesce(Sum('cantidad'), 0))
+    ingresos = DetalleIngreso.objects.values('producto').annotate(total_ing=Coalesce(Sum('cantidad'), 0, output_field=DecimalField()))
+    salidas = DetalleSalida.objects.values('producto').annotate(total_sal=Coalesce(Sum('cantidad'), 0, output_field=DecimalField()))
     ingreso_map = {item['producto']: item['total_ing'] for item in ingresos}
     salida_map = {item['producto']: item['total_sal'] for item in salidas}
 
