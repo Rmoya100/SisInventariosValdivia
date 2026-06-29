@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.db.models import Sum, F
-from inventory.models import Producto, StockProyecto, DetalleIngreso, DetalleSalida, Proyecto
+from inventory.models import Producto, StockProyecto, DetalleIngreso, DetalleSalida, DetalleTransferencia, Proyecto
 
 
 class Command(BaseCommand):
@@ -49,7 +49,7 @@ class Command(BaseCommand):
             if producto.stock_actual != correcto:
                 self.stdout.write(
                     f'  [{producto.pk}] {producto.nombre}: '
-                    f'actual={producto.stock_actual} → correcto={correcto} '
+                    f'actual={producto.stock_actual} -> correcto={correcto} '
                     f'(inicial={producto.stock_inicial}, ing={ingresos}, sal={salidas})'
                 )
                 if not dry_run:
@@ -62,38 +62,65 @@ class Command(BaseCommand):
         self.stdout.write('Reconciliando StockProyecto...')
         cambios = 0
 
-        for proyecto in Proyecto.all_objects.all():
+        for producto in Producto.all_objects.all():
             ing_map = {
-                r['producto']: r['total']
-                for r in DetalleIngreso.objects.filter(ingreso__proyecto=proyecto)
-                .values('producto')
-                .annotate(total=Sum('cantidad'))
+                r['ingreso__proyecto']: r['total']
+                for r in DetalleIngreso.objects.filter(producto=producto)
+                .values('ingreso__proyecto').annotate(total=Sum('cantidad'))
             }
             sal_map = {
-                r['producto']: r['total']
-                for r in DetalleSalida.objects.filter(salida__proyecto=proyecto)
-                .values('producto')
-                .annotate(total=Sum('cantidad'))
+                r['salida__proyecto']: r['total']
+                for r in DetalleSalida.objects.filter(producto=producto)
+                .values('salida__proyecto').annotate(total=Sum('cantidad'))
+            }
+            env_map = {
+                r['transferencia__proyecto_origen']: r['total']
+                for r in DetalleTransferencia.objects.filter(producto=producto)
+                .values('transferencia__proyecto_origen').annotate(total=Sum('cantidad_enviada'))
+            }
+            rec_map = {
+                r['transferencia__proyecto_destino']: r['total']
+                for r in DetalleTransferencia.objects.filter(producto=producto)
+                .values('transferencia__proyecto_destino').annotate(total=Sum('cantidad_recibida'))
             }
 
-            producto_ids = set(ing_map) | set(sal_map)
-            for prod_id in producto_ids:
-                correcto = ing_map.get(prod_id, 0) - sal_map.get(prod_id, 0)
-                sp = StockProyecto.objects.filter(producto_id=prod_id, proyecto=proyecto).first()
+            existing_sps = {sp.proyecto_id: sp for sp in StockProyecto.objects.filter(producto=producto)}
+            proyecto_ids = set(ing_map) | set(sal_map) | set(env_map) | set(rec_map) | set(existing_sps)
+            proyecto_ids.discard(None)
 
+            if not proyecto_ids:
+                continue
+
+            movimientos = {
+                pid: (ing_map.get(pid, 0) - sal_map.get(pid, 0)
+                      - env_map.get(pid, 0) + rec_map.get(pid, 0))
+                for pid in proyecto_ids
+            }
+
+            # Atribuir stock_inicial al proyecto primario (el de mayor cantidad actual, o el único)
+            if producto.stock_inicial > 0:
+                if len(proyecto_ids) == 1:
+                    primary_pid = next(iter(proyecto_ids))
+                elif existing_sps:
+                    primary_pid = max(existing_sps, key=lambda pid: existing_sps[pid].cantidad)
+                else:
+                    primary_pid = next(iter(proyecto_ids))
+                movimientos[primary_pid] = movimientos[primary_pid] + producto.stock_inicial
+
+            for pid in proyecto_ids:
+                correcto = movimientos[pid]
+                sp = existing_sps.get(pid)
                 if sp is None:
                     self.stdout.write(
-                        f'  [nuevo] proyecto={proyecto.nombre} prod_id={prod_id} cantidad={correcto}'
+                        f'  [nuevo] prod={producto.nombre} proj_id={pid} cantidad={correcto}'
                     )
                     if not dry_run:
-                        StockProyecto.objects.create(
-                            producto_id=prod_id, proyecto=proyecto, cantidad=correcto
-                        )
+                        StockProyecto.objects.create(producto=producto, proyecto_id=pid, cantidad=correcto)
                     cambios += 1
                 elif sp.cantidad != correcto:
                     self.stdout.write(
-                        f'  proyecto={proyecto.nombre} prod_id={prod_id}: '
-                        f'actual={sp.cantidad} → correcto={correcto}'
+                        f'  prod={producto.nombre} proj_id={pid}: '
+                        f'actual={sp.cantidad} -> correcto={correcto}'
                     )
                     if not dry_run:
                         StockProyecto.objects.filter(pk=sp.pk).update(cantidad=correcto)

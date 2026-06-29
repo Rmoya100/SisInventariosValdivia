@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Sum, F
+from django.db.models import F
 from .core import Proyecto, Bodega, Partida
 from .catalogo import Producto, StockProyecto
 from .compras import OrdenCompra
@@ -29,13 +29,17 @@ class DetalleIngreso(models.Model):
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
+        if not is_new:
+            old_cantidad = DetalleIngreso.objects.get(pk=self.pk).cantidad
         super().save(*args, **kwargs)
 
         if self.producto:
             if is_new:
                 Producto.all_objects.filter(pk=self.producto.pk).update(stock_actual=F('stock_actual') + self.cantidad)
             else:
-                self.producto.actualizar_stock()
+                diff = self.cantidad - old_cantidad
+                if diff:
+                    Producto.all_objects.filter(pk=self.producto.pk).update(stock_actual=F('stock_actual') + diff)
 
             proyecto = self.ingreso.proyecto
             if proyecto:
@@ -43,9 +47,9 @@ class DetalleIngreso(models.Model):
                 if is_new:
                     StockProyecto.objects.filter(pk=stock_proj.pk).update(cantidad=F('cantidad') + self.cantidad)
                 else:
-                    total_ing = DetalleIngreso.objects.filter(producto=self.producto, ingreso__proyecto=proyecto).aggregate(total=Sum('cantidad'))['total'] or 0
-                    total_sal = DetalleSalida.objects.filter(producto=self.producto, salida__proyecto=proyecto).aggregate(total=Sum('cantidad'))['total'] or 0
-                    StockProyecto.objects.filter(pk=stock_proj.pk).update(cantidad=total_ing - total_sal)
+                    diff = self.cantidad - old_cantidad
+                    if diff:
+                        StockProyecto.objects.filter(pk=stock_proj.pk).update(cantidad=F('cantidad') + diff)
 
         if self.ingreso and self.ingreso.orden_compra:
             self.ingreso.orden_compra.actualizar_estado()
@@ -88,12 +92,16 @@ class DetalleSalida(models.Model):
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
+        if not is_new:
+            old_cantidad = DetalleSalida.objects.get(pk=self.pk).cantidad
         super().save(*args, **kwargs)
         if self.producto:
             if is_new:
                 Producto.all_objects.filter(pk=self.producto.pk).update(stock_actual=F('stock_actual') - self.cantidad)
             else:
-                self.producto.actualizar_stock()
+                diff = self.cantidad - old_cantidad
+                if diff:
+                    Producto.all_objects.filter(pk=self.producto.pk).update(stock_actual=F('stock_actual') - diff)
 
             proyecto = self.salida.proyecto
             if proyecto:
@@ -101,9 +109,9 @@ class DetalleSalida(models.Model):
                 if is_new:
                     StockProyecto.objects.filter(pk=stock_proj.pk).update(cantidad=F('cantidad') - self.cantidad)
                 else:
-                    total_ing = DetalleIngreso.objects.filter(producto=self.producto, ingreso__proyecto=proyecto).aggregate(total=Sum('cantidad'))['total'] or 0
-                    total_sal = DetalleSalida.objects.filter(producto=self.producto, salida__proyecto=proyecto).aggregate(total=Sum('cantidad'))['total'] or 0
-                    StockProyecto.objects.filter(pk=stock_proj.pk).update(cantidad=total_ing - total_sal)
+                    diff = self.cantidad - old_cantidad
+                    if diff:
+                        StockProyecto.objects.filter(pk=stock_proj.pk).update(cantidad=F('cantidad') - diff)
 
     def delete(self, *args, **kwargs):
         prod = self.producto
