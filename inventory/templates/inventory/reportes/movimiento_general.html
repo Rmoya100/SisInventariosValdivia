@@ -26,6 +26,7 @@
             <th>#</th>
             <th>Producto</th>
             <th>Categoría</th>
+            <th class="text-center">Unidad</th>
             <th class="text-right">Total Ingresado</th>
             <th class="text-right">Total Salida</th>
             <th class="text-right">Stock Actual</th>
@@ -38,9 +39,12 @@
             <td class="counter">{{ forloop.counter }}</td>
             <td class="bold">{{ movimiento.producto.nombre }}</td>
             <td><span class="badge badge-default">{{ movimiento.categoria }}</span></td>
+            <td class="text-center">
+                {% if movimiento.unidad_medida %}<span class="badge badge-info">{{ movimiento.unidad_medida.abreviatura }}</span>{% else %}<span class="muted">—</span>{% endif %}
+            </td>
             <td class="text-right" style="color:#166534;">+{{ movimiento.ingresos }}</td>
             <td class="text-right" style="color:#991b1b;">-{{ movimiento.salidas }}</td>
-            <td class="text-right bold">{{ movimiento.stock_actual }} un.</td>
+            <td class="text-right bold">{{ movimiento.stock_actual }}{% if movimiento.unidad_medida %} {{ movimiento.unidad_medida.abreviatura }}{% endif %}</td>
             <td class="text-center">
                 {% if movimiento.stock_actual == 0 %}
                     <span class="badge badge-danger">Sin Stock</span>
@@ -52,7 +56,7 @@
             </td>
         </tr>
         {% empty %}
-        <tr><td colspan="7" class="text-center muted" style="padding:24px;">No hay movimientos registrados.</td></tr>
+        <tr><td colspan="8" class="text-center muted" style="padding:24px;">No hay movimientos registrados.</td></tr>
         {% endfor %}
     </tbody>
 </table>
