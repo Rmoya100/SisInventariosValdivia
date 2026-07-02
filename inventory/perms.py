@@ -92,6 +92,11 @@ PERM_MAP: dict[str, str] = {
     'inventory.add_gasto':    'gasto_crear',
     'inventory.change_gasto': 'gasto_editar',
     'inventory.delete_gasto': 'gasto_eliminar',
+    # Planificación
+    'inventory.view_tareaplanificacion':   'plan_ver',
+    'inventory.add_tareaplanificacion':    'plan_crear',
+    'inventory.change_tareaplanificacion': 'plan_editar',
+    'inventory.delete_tareaplanificacion': 'plan_eliminar',
     # Módulos Torre / Empresa (admin only, sin campo Permiso específico → denegar)
 }
 

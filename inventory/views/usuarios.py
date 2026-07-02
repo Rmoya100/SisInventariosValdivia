@@ -53,6 +53,7 @@ def editar_permisos(request, usuario_id):
         {'id': 'mant_maq', 'nombre': 'Reparación Maquinaria'},
         {'id': 'gdi', 'nombre': 'GDI Activos'},
         {'id': 'gasto', 'nombre': 'Control de Gastos'},
+        {'id': 'plan', 'nombre': 'Planificación'},
     ]
 
     if request.method == 'POST':
@@ -80,6 +81,7 @@ def editar_permisos(request, usuario_id):
             'mant_maq_ver', 'mant_maq_crear', 'mant_maq_editar', 'mant_maq_eliminar',
             'gdi_ver', 'gdi_crear', 'gdi_editar', 'gdi_eliminar',
             'gasto_ver', 'gasto_crear', 'gasto_editar', 'gasto_eliminar',
+            'plan_ver', 'plan_crear', 'plan_editar', 'plan_eliminar',
         ]
 
         for field_name in permiso_fields:

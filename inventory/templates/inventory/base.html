@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'inventory/css/style.css' %}?v=3.1">
+    {% block extra_css %}{% endblock %}
 </head>
 
 <body>
@@ -173,6 +174,13 @@
             <a href="{% url 'gastos' %}" class="nav-link-custom {% if 'gastos' in request.path %}active{% endif %}">
                 <span class="nav-icon"><i class="fa-solid fa-money-bill-wave"></i></span>
                 <span class="nav-text">Control de Gastos</span>
+            </a>
+            {% endif %}
+
+            {% if user_perms.plan_ver or is_admin %}
+            <a href="{% url 'planificacion_list' %}" class="nav-link-custom {% if 'planificacion' in request.path %}active{% endif %}">
+                <span class="nav-icon"><i class="fa-solid fa-diagram-gantt"></i></span>
+                <span class="nav-text">Planificación</span>
             </a>
             {% endif %}
 
@@ -398,6 +406,7 @@
         }
     });
     </script>
+    {% block extra_js %}{% endblock %}
 </body>
 
 </html>

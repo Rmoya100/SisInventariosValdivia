@@ -34,6 +34,12 @@ from .equipos import (
     mantenimiento_maquinaria_view, recibir_maquinaria_mantenimiento,
     TransferenciaActivoListView, transferencia_activo_crear, transferencia_activo_editar, recibir_transferencia_activo
 )
+from .planificacion import (
+    PlanificacionListView, gantt_view,
+    api_tareas, api_tarea_crear, api_tarea_editar,
+    api_tarea_eliminar, api_tarea_mover, api_tarea_progreso,
+    api_partidas_gantt, api_reordenar,
+)
 from .reportes import (
     reporte_compras_pdf, reporte_oc_pendientes_pdf, reporte_ingresos_pdf, reporte_ingreso_detail_pdf, reporte_salidas_pdf,
     reporte_productos_pdf, reporte_proveedores_pdf, reporte_categorias_pdf, reporte_transferencia_pdf,

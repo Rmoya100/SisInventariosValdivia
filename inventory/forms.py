@@ -6,7 +6,8 @@ from .models import (
     DetalleCompra, DetalleIngreso, DetalleSalida, Trabajador, Usuario,
     Proyecto, Empresa, Transferencia, DetalleTransferencia, Bodega,
     Herramienta, Maquinaria, MantenimientoHerramienta, MantenimientoMaquinaria,
-    TransferenciaActivo, DetalleTransferenciaActivo, ModuloTorre, Gasto, Fase, StockProyecto, Partida
+    TransferenciaActivo, DetalleTransferenciaActivo, ModuloTorre, Gasto, Fase, StockProyecto, Partida,
+    TareaPlanificacion,
 )
 
 class UppercaseMixin:
@@ -119,11 +120,13 @@ class UsuarioEditarForm(UppercaseMixin, forms.Form):
 class ProyectoForm(UppercaseMixin, forms.ModelForm):
     class Meta:
         model = Proyecto
-        fields = ['nombre', 'descripcion', 'activo']
+        fields = ['nombre', 'descripcion', 'activo', 'fecha_inicio', 'fecha_fin']
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'fecha_inicio': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'fecha_fin': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         }
 
 class BodegaForm(UppercaseMixin, forms.ModelForm):
@@ -832,4 +835,47 @@ DetalleTransferenciaFormSet = forms.inlineformset_factory(
     Transferencia, DetalleTransferencia, form=DetalleTransferenciaForm,
     extra=1, can_delete=True
 )
+
+
+class TareaPlanificacionForm(forms.ModelForm):
+    class Meta:
+        model = TareaPlanificacion
+        fields = [
+            'nombre', 'descripcion', 'padre', 'nivel', 'wbs_orden',
+            'fecha_inicio', 'fecha_fin', 'progreso', 'es_hito',
+            'estado', 'partida', 'responsable',
+        ]
+        widgets = {
+            'nombre':       forms.TextInput(attrs={'class': 'form-control'}),
+            'descripcion':  forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'padre':        forms.Select(attrs={'class': 'form-select'}),
+            'nivel':        forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 5}),
+            'wbs_orden':    forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
+            'fecha_inicio': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'fecha_fin':    forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'progreso':     forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
+            'es_hito':      forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'estado':       forms.Select(attrs={'class': 'form-select'}),
+            'partida':      forms.Select(attrs={'class': 'form-select'}),
+            'responsable':  forms.Select(attrs={'class': 'form-select'}),
+        }
+
+    def __init__(self, *args, proyecto=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['padre'].required = False
+        self.fields['partida'].required = False
+        self.fields['responsable'].required = False
+        self.fields['descripcion'].required = False
+        self.fields['nivel'].required = False
+        self.fields['wbs_orden'].required = False
+        if proyecto:
+            self.fields['padre'].queryset = TareaPlanificacion.objects.filter(
+                proyecto=proyecto, activo=True
+            )
+            self.fields['partida'].queryset = Partida.objects.filter(
+                proyecto=proyecto, activo=True
+            )
+        else:
+            self.fields['padre'].queryset = TareaPlanificacion.objects.none()
+            self.fields['partida'].queryset = Partida.objects.none()
 

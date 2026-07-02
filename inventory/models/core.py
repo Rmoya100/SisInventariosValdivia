@@ -24,6 +24,8 @@ class Proyecto(models.Model):
     nombre = models.CharField(max_length=255)
     descripcion = models.TextField(blank=True, null=True)
     activo = models.BooleanField(default=True)
+    fecha_inicio = models.DateField(null=True, blank=True, verbose_name='Fecha Inicio')
+    fecha_fin = models.DateField(null=True, blank=True, verbose_name='Fecha Fin')
 
     objects = ActiveManager()
     all_objects = models.Manager()

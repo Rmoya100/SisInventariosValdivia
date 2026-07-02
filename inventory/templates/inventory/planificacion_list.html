@@ -1,0 +1,95 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+
+{% block title %}Planificación de Proyectos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'index' %}" class="btn rounded-circle" title="Volver al inicio">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="fw-bold mb-0" style="font-size:1.35rem;">Planificación de Proyectos</h2>
+            <p class="mb-0 text-muted" style="font-size:0.8rem;">Gestión de cronogramas y diagramas Gantt por proyecto.</p>
+        </div>
+    </div>
+</div>
+
+<form method="get" class="mb-4">
+    <div class="input-group shadow-sm rounded-pill overflow-hidden">
+        <input type="text" name="q" value="{{ q }}" class="form-control border-0 px-4 py-2 bg-white" placeholder="Buscar proyecto...">
+        <button class="btn btn-primary px-4 fw-bold" type="submit">Buscar</button>
+    </div>
+</form>
+
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4 py-3">Proyecto</th>
+                    <th>Período</th>
+                    <th class="text-center">Tareas</th>
+                    <th class="text-center">Avance</th>
+                    <th class="text-end pe-4">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in proyectos_data %}
+                {% with p=item.proyecto %}
+                <tr>
+                    <td class="ps-4">
+                        <div class="fw-bold">{{ p.nombre }}</div>
+                        {% if p.descripcion %}
+                        <div class="text-muted" style="font-size:0.78rem;">{{ p.descripcion|truncatechars:60 }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if p.fecha_inicio and p.fecha_fin %}
+                        <span class="text-muted" style="font-size:0.85rem;">
+                            <i class="fa-regular fa-calendar me-1"></i>
+                            {{ p.fecha_inicio|date:"d/m/Y" }} — {{ p.fecha_fin|date:"d/m/Y" }}
+                        </span>
+                        {% else %}
+                        <span class="text-muted" style="font-size:0.82rem;">Sin fechas definidas</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-primary rounded-pill px-3">{{ item.count }}</span>
+                    </td>
+                    <td class="text-center" style="min-width:120px;">
+                        {% if item.count > 0 %}
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="progress flex-grow-1" style="height:6px;">
+                                <div class="progress-bar bg-success" style="width:{{ item.avance }}%"></div>
+                            </div>
+                            <span style="font-size:0.8rem; min-width:32px;">{{ item.avance }}%</span>
+                        </div>
+                        {% else %}
+                        <span class="text-muted" style="font-size:0.82rem;">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end pe-4">
+                        <a href="{% url 'planificacion_gantt' p.idProyecto %}" class="btn btn-primary btn-sm rounded-pill px-3 fw-semibold">
+                            <i class="fa-solid fa-diagram-gantt me-1"></i>Abrir Gantt
+                        </a>
+                    </td>
+                </tr>
+                {% endwith %}
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center py-5">
+                        <div style="color:var(--gray-300); font-size:2.5rem; margin-bottom:.75rem;">
+                            <i class="fa-solid fa-diagram-gantt"></i>
+                        </div>
+                        <p class="fw-semibold text-muted mb-1">No hay proyectos disponibles</p>
+                        <p class="text-muted" style="font-size:0.82rem;">Crea un proyecto primero desde la sección de Proyectos.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

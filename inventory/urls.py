@@ -163,4 +163,16 @@ urlpatterns = [
     path('api/stock-disponible/', views.api_stock_disponible, name='api_stock_disponible'),
     path('api/partidas-por-proyecto/', views.api_partidas_por_proyecto, name='api_partidas_por_proyecto'),
     path('api/modulos-torre-por-proyecto/', views.api_modulos_torre_por_proyecto, name='api_modulos_torre_por_proyecto'),
+
+    # Planificación / Gantt
+    path('planificacion/', views.PlanificacionListView.as_view(), name='planificacion_list'),
+    path('planificacion/<int:proyecto_id>/', views.gantt_view, name='planificacion_gantt'),
+    path('planificacion/<int:proyecto_id>/tareas/', views.api_tareas, name='api_tareas_gantt'),
+    path('planificacion/<int:proyecto_id>/tarea/crear/', views.api_tarea_crear, name='api_tarea_crear'),
+    path('planificacion/tarea/<int:pk>/editar/', views.api_tarea_editar, name='api_tarea_editar'),
+    path('planificacion/tarea/<int:pk>/eliminar/', views.api_tarea_eliminar, name='api_tarea_eliminar'),
+    path('planificacion/tarea/<int:pk>/mover/', views.api_tarea_mover, name='api_tarea_mover'),
+    path('planificacion/tarea/<int:pk>/progreso/', views.api_tarea_progreso, name='api_tarea_progreso'),
+    path('planificacion/<int:proyecto_id>/partidas-disponibles/', views.api_partidas_gantt, name='api_partidas_gantt'),
+    path('planificacion/<int:proyecto_id>/reordenar/', views.api_reordenar, name='api_reordenar'),
 ]

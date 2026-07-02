@@ -1,0 +1,320 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+
+{% block title %}Planificación — {{ proyecto.nombre }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.min.css">
+<style>
+/* ── Contenedor principal ──────────────────────────────────── */
+.gantt-wrapper {
+    display: flex;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    min-height: 400px;
+}
+
+/* ── Panel izquierdo: tabla WBS ────────────────────────────── */
+#gantt-table-panel {
+    width: 620px;
+    min-width: 320px;
+    max-width: 620px;
+    flex-shrink: 0;
+    border-right: 2px solid #e2e8f0;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+#gantt-table-panel table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+#gantt-table-panel thead th {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 8px 6px;
+    font-weight: 600;
+    color: #475569;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+#gantt-table-panel tbody tr {
+    height: 38px;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background .15s;
+}
+#gantt-table-panel tbody tr:hover { background: #f8fafc; }
+#gantt-table-panel tbody td {
+    padding: 4px 6px;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.wbs-nombre { max-width: 200px; }
+.wbs-nivel-0 { font-weight: 700; }
+.wbs-nivel-1 .wbs-indent { padding-left: 16px; }
+.wbs-nivel-2 .wbs-indent { padding-left: 32px; font-size: 0.78rem; }
+.wbs-nivel-3 .wbs-indent { padding-left: 48px; font-size: 0.76rem; color: #64748b; }
+
+/* ── Panel derecho: Gantt SVG ──────────────────────────────── */
+#gantt-chart-panel {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    min-width: 0;
+}
+#gantt-chart-panel svg { display: block; }
+
+/* ── frappe-gantt overrides ────────────────────────────────── */
+.gantt .bar { fill: #a5b4fc; rx: 4; ry: 4; }
+.gantt .bar-progress { fill: #6366f1; }
+.gantt .bar-label { font-size: 11px; fill: #1e293b; }
+.gantt .bar-wrapper:hover .bar { fill: #818cf8; }
+.gantt-header .upper-text,
+.gantt-header .lower-text { fill: #475569; font-weight: 600; }
+.gantt .today-highlight { fill: #e0e7ff; opacity: .5; }
+/* Hito: barra naranja */
+.gantt .bar-wrapper.hito-task .bar { fill: #f59e0b; }
+.gantt .bar-wrapper.hito-task .bar-progress { fill: #d97706; }
+
+/* ── Badges estado ─────────────────────────────────────────── */
+.estado-badge { font-size: 0.7rem; padding: 2px 7px; border-radius: 20px; font-weight: 600; }
+.estado-PENDIENTE  { background:#e2e8f0; color:#475569; }
+.estado-EN_CURSO   { background:#dbeafe; color:#1d4ed8; }
+.estado-COMPLETADA { background:#d1fae5; color:#065f46; }
+.estado-BLOQUEADA  { background:#fee2e2; color:#991b1b; }
+
+/* ── Toolbar ───────────────────────────────────────────────── */
+.gantt-toolbar { gap: .5rem; flex-wrap: wrap; }
+.btn-zoom { min-width: 60px; }
+.btn-zoom.active { background: #6366f1 !important; color: #fff !important; border-color: #6366f1 !important; }
+
+/* ── Collapse toggle ───────────────────────────────────────── */
+.toggle-collapse { cursor: pointer; color: #6366f1; font-size: .75rem; margin-right: 3px; }
+.row-hidden { display: none !important; }
+
+/* ── Botón editar WBS ──────────────────────────────────────── */
+.btn-editar-tarea {
+    width: 26px; height: 26px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    color: #6366f1;
+    background: #f0f0ff;
+    border: none;
+    cursor: pointer;
+    transition: background .15s;
+}
+.btn-editar-tarea:hover { background: #c7d2fe; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Encabezado -->
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{% url 'planificacion_list' %}" class="btn rounded-circle" title="Volver">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="fw-bold mb-0" style="font-size:1.3rem;">{{ proyecto.nombre }}</h2>
+            <p class="mb-0 text-muted" style="font-size:0.78rem;">
+                {% if proyecto.fecha_inicio and proyecto.fecha_fin %}
+                <i class="fa-regular fa-calendar me-1"></i>
+                {{ proyecto.fecha_inicio|date:"d/m/Y" }} — {{ proyecto.fecha_fin|date:"d/m/Y" }}
+                {% else %}
+                Sin fechas de proyecto definidas —
+                <a href="{% url 'proyecto_editar' proyecto.pk %}" class="text-primary text-decoration-none">Configurar</a>
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="d-flex gantt-toolbar align-items-center">
+        <!-- Zoom -->
+        <div class="btn-group btn-group-sm" role="group">
+            <button class="btn btn-outline-secondary btn-zoom" id="zoom-dia" onclick="cambiarVista('Day')">Día</button>
+            <button class="btn btn-outline-secondary btn-zoom active" id="zoom-semana" onclick="cambiarVista('Week')">Semana</button>
+            <button class="btn btn-outline-secondary btn-zoom" id="zoom-mes" onclick="cambiarVista('Month')">Mes</button>
+        </div>
+        <!-- Filtro Módulo/Torre -->
+        <select id="filtro-modulo" class="form-select form-select-sm" style="min-width:150px;" onchange="filtrarPorModulo(this.value)">
+            <option value="">Todos los módulos</option>
+        </select>
+        {% if can_crear %}
+        <button class="btn btn-primary btn-sm fw-semibold" onclick="abrirModalNuevo(false)">
+            <i class="fa-solid fa-plus me-1"></i>Tarea
+        </button>
+        <button class="btn btn-outline-warning btn-sm fw-semibold" onclick="abrirModalNuevo(true)">
+            <i class="fa-solid fa-diamond me-1"></i>Hito
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Gantt split view -->
+<div class="gantt-wrapper shadow-sm mb-4" id="gantt-wrapper">
+    <!-- Panel izquierdo: WBS table -->
+    <div id="gantt-table-panel">
+        <table>
+            <thead>
+                <tr>
+                    <th class="ps-3" style="width:175px;">Nombre</th>
+                    <th style="width:80px;">Módulo</th>
+                    <th style="width:72px;">Inicio</th>
+                    <th style="width:72px;">Fin</th>
+                    <th style="width:38px;">Dur.</th>
+                    <th style="width:65px;">%</th>
+                    <th style="width:38px;">Acc.</th>
+                </tr>
+            </thead>
+            <tbody id="wbs-tbody">
+                <!-- Poblado por JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Panel derecho: Gantt SVG -->
+    <div id="gantt-chart-panel">
+        <svg id="gantt"></svg>
+    </div>
+</div>
+
+<!-- ══════════════════════════ MODAL TAREA ══════════════════════════ -->
+<div class="modal fade" id="tareaModal" tabindex="-1" aria-labelledby="tareaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="tareaModalLabel">Nueva Tarea</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <input type="hidden" id="m-id">
+                <div class="row g-3">
+                    <!-- Nombre -->
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+                        <input type="text" id="m-nombre" class="form-control" placeholder="Nombre de la tarea">
+                    </div>
+                    <!-- Es Hito -->
+                    <div class="col-md-4 d-flex align-items-end pb-1">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="m-hito">
+                            <label class="form-check-label fw-semibold" for="m-hito">
+                                <i class="fa-solid fa-diamond text-warning me-1"></i>Es Hito
+                            </label>
+                        </div>
+                    </div>
+                    <!-- Fecha inicio -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Fecha Inicio <span class="text-danger">*</span></label>
+                        <input type="date" id="m-inicio" class="form-control">
+                    </div>
+                    <!-- Fecha fin -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Fecha Fin <span class="text-danger">*</span></label>
+                        <input type="date" id="m-fin" class="form-control">
+                    </div>
+                    <!-- Progreso -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Progreso: <span id="m-progreso-val">0</span>%</label>
+                        <input type="range" id="m-progreso" class="form-range" min="0" max="100" value="0" oninput="document.getElementById('m-progreso-val').textContent=this.value">
+                    </div>
+                    <!-- Estado -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Estado</label>
+                        <select id="m-estado" class="form-select">
+                            <option value="PENDIENTE">Pendiente</option>
+                            <option value="EN_CURSO">En curso</option>
+                            <option value="COMPLETADA">Completada</option>
+                            <option value="BLOQUEADA">Bloqueada</option>
+                        </select>
+                    </div>
+                    <!-- Tarea padre -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Subtarea de</label>
+                        <select id="m-padre" class="form-select">
+                            <option value="">— Tarea raíz —</option>
+                        </select>
+                    </div>
+                    <!-- Predecesoras -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Predecesoras</label>
+                        <div id="m-predecesoras-container"
+                             style="max-height:90px; overflow-y:auto; border:1px solid #dee2e6; border-radius:6px; padding:6px 8px; background:#fff;">
+                            <span class="text-muted" style="font-size:0.8rem;">Sin tareas disponibles</span>
+                        </div>
+                    </div>
+                    <!-- Responsable -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Responsable</label>
+                        <select id="m-responsable" class="form-select">
+                            <option value="">— Sin responsable —</option>
+                        </select>
+                    </div>
+                    <!-- Vincular Partida -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Vincular a Partida</label>
+                        <select id="m-partida" class="form-select" onchange="onPartidaChange()">
+                            <option value="">— Sin partida —</option>
+                        </select>
+                    </div>
+                    <!-- Módulo / Torre -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Módulo / Torre</label>
+                        <select id="m-modulo" class="form-select">
+                            <option value="">— Sin módulo —</option>
+                        </select>
+                    </div>
+                    <!-- Descripción -->
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Descripción</label>
+                        <textarea id="m-descripcion" class="form-control" rows="2" placeholder="Descripción opcional..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button class="btn btn-outline-danger me-auto" id="btn-eliminar-tarea" style="display:none;" onclick="eliminarTarea()">
+                    <i class="fa-solid fa-trash me-1"></i>Eliminar
+                </button>
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary fw-semibold px-4" onclick="guardarTarea()">
+                    <i class="fa-solid fa-floppy-disk me-1"></i>Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Datos para JS — json_script serializa los objetos Python directamente -->
+{{ tareas_data|json_script:"tareas-data" }}
+{{ trabajadores_data|json_script:"trabajadores-data" }}
+{{ partidas_data|json_script:"partidas-data" }}
+{{ modulos_data|json_script:"modulos-data" }}
+
+<script>
+const PROYECTO_ID = {{ proyecto.idProyecto }};
+const CAN_CREAR   = {{ can_crear|yesno:"true,false" }};
+const CAN_EDITAR  = {{ can_editar|yesno:"true,false" }};
+const CAN_ELIMINAR = {{ can_eliminar|yesno:"true,false" }};
+const CSRF = '{{ csrf_token }}';
+const URLS = {
+    tareas:    '/planificacion/' + PROYECTO_ID + '/tareas/',
+    crear:     '/planificacion/' + PROYECTO_ID + '/tarea/crear/',
+    editar:    (pk) => '/planificacion/tarea/' + pk + '/editar/',
+    eliminar:  (pk) => '/planificacion/tarea/' + pk + '/eliminar/',
+    mover:     (pk) => '/planificacion/tarea/' + pk + '/mover/',
+    progreso:  (pk) => '/planificacion/tarea/' + pk + '/progreso/',
+};
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.min.js"></script>
+<script src="{% static 'inventory/js/planificacion_gantt.js' %}?v=1.6"></script>
+{% endblock %}

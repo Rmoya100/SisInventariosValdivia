@@ -157,6 +157,12 @@ class Permiso(models.Model):
     gasto_editar = models.BooleanField(default=True)
     gasto_eliminar = models.BooleanField(default=True)
 
+    # Planificación
+    plan_ver = models.BooleanField(default=True)
+    plan_crear = models.BooleanField(default=True)
+    plan_editar = models.BooleanField(default=True)
+    plan_eliminar = models.BooleanField(default=True)
+
     usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE, related_name='permisos')
 
     def __str__(self):
