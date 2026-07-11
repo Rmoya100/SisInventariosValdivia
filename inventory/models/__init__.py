@@ -7,7 +7,7 @@ from .movimientos import Ingreso, DetalleIngreso, Salida, DetalleSalida, Transfe
 from .equipos import Herramienta, MantenimientoHerramienta, Maquinaria, MantenimientoMaquinaria, TransferenciaActivo, DetalleTransferenciaActivo
 from .gastos import Fase, Gasto
 from .historial import HistorialMovimiento
-from .planificacion import TareaPlanificacion, DependenciaTarea
+from .planificacion import TareaPlanificacion, DependenciaTarea, CalendarioProyecto, FeriadoCalendario
 
 __all__ = [
     'ActiveManager',
@@ -19,5 +19,5 @@ __all__ = [
     'Herramienta', 'MantenimientoHerramienta', 'Maquinaria', 'MantenimientoMaquinaria', 'TransferenciaActivo', 'DetalleTransferenciaActivo',
     'Fase', 'Gasto',
     'HistorialMovimiento',
-    'TareaPlanificacion', 'DependenciaTarea',
+    'TareaPlanificacion', 'DependenciaTarea', 'CalendarioProyecto', 'FeriadoCalendario',
 ]

@@ -32,7 +32,7 @@
                     <th>Categoría</th>
                     <th>Unidad</th>
                     <th>Stock Inicial</th>
-                    <th>Stock Real</th>
+                    <th>Stock Real <small class="text-muted">({{ stock_context_label }})</small></th>
                     <th class="text-end pe-3">Acciones</th>
                 </tr>
             </thead>
@@ -51,8 +51,8 @@
                     </td>
                     <td class="text-muted">{{ producto.stock_inicial }}{% if producto.unidad_medida %} {{ producto.unidad_medida.abreviatura }}{% else %} un.{% endif %}</td>
                     <td>
-                        {% if producto.stock_actual > 0 %}
-                            <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill"><i class="fa-solid fa-check-circle me-1"></i>{{ producto.stock_actual }}{% if producto.unidad_medida %} {{ producto.unidad_medida.abreviatura }}{% else %} un.{% endif %}</span>
+                        {% if producto.stock_display > 0 %}
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill"><i class="fa-solid fa-check-circle me-1"></i>{{ producto.stock_display }}{% if producto.unidad_medida %} {{ producto.unidad_medida.abreviatura }}{% else %} un.{% endif %}</span>
                         {% else %}
                             <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 py-2 rounded-pill"><i class="fa-solid fa-circle-xmark me-1"></i>0{% if producto.unidad_medida %} {{ producto.unidad_medida.abreviatura }}{% else %} un.{% endif %}</span>
                         {% endif %}

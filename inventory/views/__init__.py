@@ -39,6 +39,8 @@ from .planificacion import (
     api_tareas, api_tarea_crear, api_tarea_editar,
     api_tarea_eliminar, api_tarea_mover, api_tarea_progreso,
     api_partidas_gantt, api_reordenar,
+    api_calendario_get, api_calendario_guardar,
+    api_feriado_agregar, api_feriado_eliminar,
 )
 from .reportes import (
     reporte_compras_pdf, reporte_oc_pendientes_pdf, reporte_ingresos_pdf, reporte_ingreso_detail_pdf, reporte_salidas_pdf,

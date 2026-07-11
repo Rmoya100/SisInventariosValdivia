@@ -9,22 +9,19 @@
 /* ── Contenedor principal ──────────────────────────────────── */
 .gantt-wrapper {
     display: flex;
+    flex-direction: column;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     overflow: hidden;
     background: #fff;
-    min-height: 400px;
 }
 
 /* ── Panel izquierdo: tabla WBS ────────────────────────────── */
 #gantt-table-panel {
-    width: 620px;
-    min-width: 320px;
-    max-width: 620px;
-    flex-shrink: 0;
-    border-right: 2px solid #e2e8f0;
-    overflow-x: hidden;
-    overflow-y: auto;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    border-bottom: 2px solid #e2e8f0;
 }
 #gantt-table-panel table {
     width: 100%;
@@ -63,10 +60,9 @@
 
 /* ── Panel derecho: Gantt SVG ──────────────────────────────── */
 #gantt-chart-panel {
-    flex: 1;
     overflow-x: auto;
     overflow-y: hidden;
-    min-width: 0;
+    min-height: 250px;
 }
 #gantt-chart-panel svg { display: block; }
 
@@ -90,7 +86,7 @@
 .estado-BLOQUEADA  { background:#fee2e2; color:#991b1b; }
 
 /* ── Toolbar ───────────────────────────────────────────────── */
-.gantt-toolbar { gap: .5rem; flex-wrap: wrap; }
+.gantt-toolbar { gap: .5rem; flex-wrap: nowrap; align-items: center; }
 .btn-zoom { min-width: 60px; }
 .btn-zoom.active { background: #6366f1 !important; color: #fff !important; border-color: #6366f1 !important; }
 
@@ -115,7 +111,7 @@
 
 {% block content %}
 <!-- Encabezado -->
-<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+<div class="d-flex justify-content-between align-items-center mb-3 gap-2">
     <div class="d-flex align-items-center gap-3">
         <a href="{% url 'planificacion_list' %}" class="btn rounded-circle" title="Volver">
             <i class="fa-solid fa-arrow-left"></i>
@@ -154,6 +150,9 @@
             <i class="fa-solid fa-diamond me-1"></i>Hito
         </button>
         {% endif %}
+        <button class="btn btn-outline-secondary btn-sm fw-semibold" onclick="abrirModalCalendario()" title="Configurar calendario del proyecto">
+            <i class="fa-solid fa-calendar-days me-1"></i>Calendario
+        </button>
     </div>
 </div>
 
@@ -291,6 +290,101 @@
     </div>
 </div>
 
+<!-- Modal Calendario del Proyecto -->
+<div class="modal fade" id="modalCalendario" tabindex="-1" aria-labelledby="modalCalendarioLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="modalCalendarioLabel">
+          <i class="fa-solid fa-calendar-days me-2 text-primary"></i>Calendario del Proyecto
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Días laborales -->
+        <div class="mb-4">
+          <h6 class="fw-semibold mb-2 text-secondary text-uppercase" style="font-size:.75rem;letter-spacing:.05em;">Días laborales</h6>
+          <div class="d-flex gap-2 flex-wrap">
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="cal-lunes" name="lunes">
+              <label class="form-check-label" for="cal-lunes">Lun</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="cal-martes" name="martes">
+              <label class="form-check-label" for="cal-martes">Mar</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="cal-miercoles" name="miercoles">
+              <label class="form-check-label" for="cal-miercoles">Mié</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="cal-jueves" name="jueves">
+              <label class="form-check-label" for="cal-jueves">Jue</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="cal-viernes" name="viernes">
+              <label class="form-check-label" for="cal-viernes">Vie</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="cal-sabado" name="sabado">
+              <label class="form-check-label" for="cal-sabado">Sáb</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="checkbox" id="cal-domingo" name="domingo">
+              <label class="form-check-label" for="cal-domingo">Dom</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Horario -->
+        <div class="mb-4">
+          <h6 class="fw-semibold mb-2 text-secondary text-uppercase" style="font-size:.75rem;letter-spacing:.05em;">Horario de trabajo</h6>
+          <div class="d-flex align-items-center gap-3">
+            <div>
+              <label class="form-label mb-1 small">Entrada</label>
+              <input type="time" class="form-control form-control-sm" id="cal-hora-inicio" style="width:120px;">
+            </div>
+            <div>
+              <label class="form-label mb-1 small">Salida</label>
+              <input type="time" class="form-control form-control-sm" id="cal-hora-fin" style="width:120px;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Feriados -->
+        <div>
+          <h6 class="fw-semibold mb-2 text-secondary text-uppercase" style="font-size:.75rem;letter-spacing:.05em;">Feriados / días no laborales</h6>
+          <div id="cal-feriados-lista" class="mb-2" style="max-height:180px;overflow-y:auto;"></div>
+          <div class="d-flex gap-2 align-items-end">
+            <div>
+              <label class="form-label mb-1 small">Fecha</label>
+              <input type="date" class="form-control form-control-sm" id="cal-feriado-fecha" style="width:150px;">
+            </div>
+            <div class="flex-grow-1">
+              <label class="form-label mb-1 small">Descripción</label>
+              <input type="text" class="form-control form-control-sm" id="cal-feriado-nombre" placeholder="Ej: Fiestas Patrias">
+            </div>
+            <button class="btn btn-outline-primary btn-sm" onclick="agregarFeriado()">
+              <i class="fa-solid fa-plus me-1"></i>Agregar
+            </button>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-outline-primary" onclick="guardarCalendario(false)">
+          <i class="fa-solid fa-floppy-disk me-1"></i>Guardar
+        </button>
+        <button type="button" class="btn btn-primary" onclick="guardarCalendario(true)">
+          <i class="fa-solid fa-arrows-rotate me-1"></i>Guardar y recalcular fechas
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Datos para JS — json_script serializa los objetos Python directamente -->
 {{ tareas_data|json_script:"tareas-data" }}
 {{ trabajadores_data|json_script:"trabajadores-data" }}
@@ -304,17 +398,22 @@ const CAN_EDITAR  = {{ can_editar|yesno:"true,false" }};
 const CAN_ELIMINAR = {{ can_eliminar|yesno:"true,false" }};
 const CSRF = '{{ csrf_token }}';
 const URLS = {
-    tareas:    '/planificacion/' + PROYECTO_ID + '/tareas/',
-    crear:     '/planificacion/' + PROYECTO_ID + '/tarea/crear/',
-    editar:    (pk) => '/planificacion/tarea/' + pk + '/editar/',
-    eliminar:  (pk) => '/planificacion/tarea/' + pk + '/eliminar/',
-    mover:     (pk) => '/planificacion/tarea/' + pk + '/mover/',
-    progreso:  (pk) => '/planificacion/tarea/' + pk + '/progreso/',
+    tareas:              '/planificacion/' + PROYECTO_ID + '/tareas/',
+    crear:               '/planificacion/' + PROYECTO_ID + '/tarea/crear/',
+    editar:              (pk) => '/planificacion/tarea/' + pk + '/editar/',
+    eliminar:            (pk) => '/planificacion/tarea/' + pk + '/eliminar/',
+    mover:               (pk) => '/planificacion/tarea/' + pk + '/mover/',
+    progreso:            (pk) => '/planificacion/tarea/' + pk + '/progreso/',
+    calendario:          '/planificacion/' + PROYECTO_ID + '/calendario/',
+    calendarioGuardar:   '/planificacion/' + PROYECTO_ID + '/calendario/guardar/',
+    feriadoAgregar:      '/planificacion/' + PROYECTO_ID + '/feriado/agregar/',
+    feriadoEliminar:     (id) => '/planificacion/feriado/' + id + '/eliminar/',
 };
+const CALENDARIO_INICIAL = {{ calendario_json|safe }};
 </script>
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/frappe-gantt/0.6.1/frappe-gantt.min.js"></script>
-<script src="{% static 'inventory/js/planificacion_gantt.js' %}?v=1.6"></script>
+<script src="{% static 'inventory/js/planificacion_gantt.js' %}?v=1.7"></script>
 {% endblock %}

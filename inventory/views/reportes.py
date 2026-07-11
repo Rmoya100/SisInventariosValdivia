@@ -664,22 +664,22 @@ def reporte_movimientos_producto_list_view(request):
                     'cantidad': det.cantidad_recibida,
                 })
                 
-        # Ordenar cronológicamente para calcular stock acumulado
-        movimientos.sort(key=lambda m: (m['fecha'], m['tipo']))
-        
-        stock_acumulado = 0
-        for mov in movimientos:
-            stock_acumulado += mov['cantidad']
-            mov['stock_acumulado'] = stock_acumulado
-            
-        # Revertir para mostrar primero el más reciente
-        movimientos.reverse()
-        
-        # Stock real actual
+        # Stock real actual (antes del acumulado para usarlo como base)
         if bodega_seleccionada.proyecto:
             sp = StockProyecto.objects.filter(producto=producto_seleccionado, proyecto=bodega_seleccionada.proyecto).first()
             if sp:
                 stock_real = sp.cantidad
+
+        # Ordenar cronológicamente y acumular desde el stock inicial derivado
+        movimientos.sort(key=lambda m: (m['fecha'], m['tipo']))
+        sum_movs = sum(m['cantidad'] for m in movimientos)
+        stock_acumulado = stock_real - sum_movs
+        for mov in movimientos:
+            stock_acumulado += mov['cantidad']
+            mov['stock_acumulado'] = stock_acumulado
+
+        # Revertir para mostrar primero el más reciente
+        movimientos.reverse()
 
     # Paginación
     paginator = Paginator(movimientos, 50)
@@ -791,18 +791,19 @@ def reporte_movimientos_producto_pdf(request):
                     'cantidad': det.cantidad_recibida,
                 })
                 
-        movimientos.sort(key=lambda m: (m['fecha'], m['tipo']))
-        stock_acumulado = 0
-        for mov in movimientos:
-            stock_acumulado += mov['cantidad']
-            mov['stock_acumulado'] = stock_acumulado
-            
-        movimientos.reverse()
-        
         if bodega_seleccionada.proyecto:
             sp = StockProyecto.objects.filter(producto=producto_seleccionado, proyecto=bodega_seleccionada.proyecto).first()
             if sp:
                 stock_real = sp.cantidad
+
+        movimientos.sort(key=lambda m: (m['fecha'], m['tipo']))
+        sum_movs = sum(m['cantidad'] for m in movimientos)
+        stock_acumulado = stock_real - sum_movs
+        for mov in movimientos:
+            stock_acumulado += mov['cantidad']
+            mov['stock_acumulado'] = stock_acumulado
+
+        movimientos.reverse()
 
     empresa = Empresa.objects.first()
     titulo_reporte = f"Reporte de Movimientos de {producto_seleccionado.nombre if producto_seleccionado else ''}"
@@ -906,18 +907,19 @@ def exportar_movimientos_producto_excel(request):
                     'cantidad': det.cantidad_recibida,
                 })
                 
-        movimientos.sort(key=lambda m: (m['fecha'], m['tipo']))
-        stock_acumulado = 0
-        for mov in movimientos:
-            stock_acumulado += mov['cantidad']
-            mov['stock_acumulado'] = stock_acumulado
-            
-        movimientos.reverse()
-        
         if bodega_seleccionada.proyecto:
             sp = StockProyecto.objects.filter(producto=producto_seleccionado, proyecto=bodega_seleccionada.proyecto).first()
             if sp:
                 stock_real = sp.cantidad
+
+        movimientos.sort(key=lambda m: (m['fecha'], m['tipo']))
+        sum_movs = sum(m['cantidad'] for m in movimientos)
+        stock_acumulado = stock_real - sum_movs
+        for mov in movimientos:
+            stock_acumulado += mov['cantidad']
+            mov['stock_acumulado'] = stock_acumulado
+
+        movimientos.reverse()
 
     wb = Workbook()
     ws = wb.active

@@ -67,3 +67,36 @@ class DependenciaTarea(models.Model):
 
     def __str__(self):
         return f"{self.tarea_predecesora} → {self.tarea_sucesora} ({self.tipo})"
+
+
+class CalendarioProyecto(models.Model):
+    proyecto    = models.OneToOneField(Proyecto, on_delete=models.CASCADE, related_name='calendario')
+    lunes       = models.BooleanField(default=True)
+    martes      = models.BooleanField(default=True)
+    miercoles   = models.BooleanField(default=True)
+    jueves      = models.BooleanField(default=True)
+    viernes     = models.BooleanField(default=True)
+    sabado      = models.BooleanField(default=False)
+    domingo     = models.BooleanField(default=False)
+    hora_inicio = models.TimeField(default='08:00')
+    hora_fin    = models.TimeField(default='17:00')
+
+    class Meta:
+        verbose_name = 'Calendario de Proyecto'
+
+    def __str__(self):
+        return f"Calendario — {self.proyecto.nombre}"
+
+
+class FeriadoCalendario(models.Model):
+    calendario = models.ForeignKey(CalendarioProyecto, on_delete=models.CASCADE, related_name='feriados')
+    fecha      = models.DateField()
+    nombre     = models.CharField(max_length=100)
+
+    class Meta:
+        ordering = ['fecha']
+        unique_together = ['calendario', 'fecha']
+        verbose_name = 'Feriado'
+
+    def __str__(self):
+        return f"{self.fecha} — {self.nombre}"

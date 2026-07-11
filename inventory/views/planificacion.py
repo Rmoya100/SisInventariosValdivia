@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.generic import ListView
@@ -8,7 +8,10 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.db.models import Avg
 
-from ..models import Proyecto, Partida, Trabajador, TareaPlanificacion, DependenciaTarea, ModuloTorre
+from ..models import (
+    Proyecto, Partida, Trabajador, TareaPlanificacion, DependenciaTarea,
+    ModuloTorre, CalendarioProyecto, FeriadoCalendario,
+)
 from ..forms import TareaPlanificacionForm
 from ..perms import user_has_custom_perm
 
@@ -19,7 +22,53 @@ def _check_perm(request, campo):
     return user_has_custom_perm(request.user, f'inventory.{campo}_tareaplanificacion')
 
 
-def _tarea_to_dict(t):
+# ── Helpers de calendario ──────────────────────────────────────────────────
+
+def _dias_habil_set(cal):
+    dias = {i for i, v in enumerate([
+        cal.lunes, cal.martes, cal.miercoles, cal.jueves,
+        cal.viernes, cal.sabado, cal.domingo,
+    ]) if v}
+    feriados = set(cal.feriados.values_list('fecha', flat=True))
+    return dias, feriados
+
+
+def _dias_habiles_entre(fecha_inicio, fecha_fin, cal):
+    dias, feriados = _dias_habil_set(cal)
+    count, d = 0, fecha_inicio
+    while d <= fecha_fin:
+        if d.weekday() in dias and d not in feriados:
+            count += 1
+        d += timedelta(days=1)
+    return max(count, 1)
+
+
+def _fecha_fin_desde_duracion(fecha_inicio, duracion, cal):
+    dias, feriados = _dias_habil_set(cal)
+    count, d = 0, fecha_inicio
+    while True:
+        if d.weekday() in dias and d not in feriados:
+            count += 1
+            if count >= duracion:
+                return d
+        d += timedelta(days=1)
+
+
+def _calendario_to_dict(cal):
+    return {
+        'lunes': cal.lunes, 'martes': cal.martes, 'miercoles': cal.miercoles,
+        'jueves': cal.jueves, 'viernes': cal.viernes, 'sabado': cal.sabado,
+        'domingo': cal.domingo,
+        'hora_inicio': cal.hora_inicio.strftime('%H:%M'),
+        'hora_fin': cal.hora_fin.strftime('%H:%M'),
+        'feriados': [
+            {'id': f.pk, 'fecha': f.fecha.strftime('%Y-%m-%d'), 'nombre': f.nombre}
+            for f in cal.feriados.all()
+        ],
+    }
+
+
+def _tarea_to_dict(t, cal=None):
     predecesoras_ids = ','.join(
         str(d.tarea_predecesora_id) for d in t.predecesoras.all()
     )
@@ -41,7 +90,7 @@ def _tarea_to_dict(t):
         'partida_nombre': t.partida.nombre if t.partida else '',
         'modulo_torre_id': t.modulo_torre_id,
         'modulo_torre_nombre': t.modulo_torre.nombre if t.modulo_torre else '',
-        'duracion': t.duracion_dias,
+        'duracion': _dias_habiles_entre(t.fecha_inicio, t.fecha_fin, cal) if cal else t.duracion_dias,
         'es_hito': t.es_hito,
         'descripcion': t.descripcion or '',
     }
@@ -89,16 +138,19 @@ def gantt_view(request, proyecto_id):
         proyecto=proyecto, activo=True
     ).select_related('partida', 'responsable', 'modulo_torre').prefetch_related('predecesoras')
 
+    cal = getattr(proyecto, 'calendario', None)
+
     trabajadores = list(Trabajador.objects.filter(activo=True).order_by('nombre').values('codTrabajador', 'nombre', 'apellido'))
     partidas = list(Partida.objects.filter(proyecto=proyecto, activo=True).order_by('nombre').values('idPartida', 'nombre'))
     modulos = list(ModuloTorre.objects.filter(proyecto=proyecto, activo=True).order_by('nombre').values('idModuloTorre', 'nombre'))
 
     return render(request, 'inventory/planificacion_gantt.html', {
         'proyecto': proyecto,
-        'tareas_data': [_tarea_to_dict(t) for t in tareas_qs],
+        'tareas_data': [_tarea_to_dict(t, cal) for t in tareas_qs],
         'trabajadores_data': trabajadores,
         'partidas_data': partidas,
         'modulos_data': modulos,
+        'calendario_json': json.dumps(_calendario_to_dict(cal)) if cal else 'null',
         'can_crear': _check_perm(request, 'add'),
         'can_editar': _check_perm(request, 'change'),
         'can_eliminar': _check_perm(request, 'delete'),
@@ -108,10 +160,11 @@ def gantt_view(request, proyecto_id):
 @login_required
 def api_tareas(request, proyecto_id):
     proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
+    cal = getattr(proyecto, 'calendario', None)
     tareas_qs = TareaPlanificacion.objects.filter(
         proyecto=proyecto, activo=True
     ).select_related('partida', 'responsable', 'modulo_torre').prefetch_related('predecesoras')
-    return JsonResponse({'tareas': [_tarea_to_dict(t) for t in tareas_qs]})
+    return JsonResponse({'tareas': [_tarea_to_dict(t, cal) for t in tareas_qs]})
 
 
 @login_required
@@ -286,4 +339,84 @@ def api_reordenar(request, proyecto_id):
             nivel=item.get('nivel', 0),
             padre_id=item.get('padre_id') or None,
         )
+    return JsonResponse({'ok': True})
+
+
+# ── APIs de Calendario ─────────────────────────────────────────────────────
+
+@login_required
+def api_calendario_get(request, proyecto_id):
+    proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
+    cal, _ = CalendarioProyecto.objects.get_or_create(proyecto=proyecto)
+    return JsonResponse(_calendario_to_dict(cal))
+
+
+@login_required
+@require_POST
+def api_calendario_guardar(request, proyecto_id):
+    if not _check_perm(request, 'change'):
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+    proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
+    data = json.loads(request.body)
+    cal, _ = CalendarioProyecto.objects.get_or_create(proyecto=proyecto)
+
+    cal.lunes     = bool(data.get('lunes', cal.lunes))
+    cal.martes    = bool(data.get('martes', cal.martes))
+    cal.miercoles = bool(data.get('miercoles', cal.miercoles))
+    cal.jueves    = bool(data.get('jueves', cal.jueves))
+    cal.viernes   = bool(data.get('viernes', cal.viernes))
+    cal.sabado    = bool(data.get('sabado', cal.sabado))
+    cal.domingo   = bool(data.get('domingo', cal.domingo))
+
+    hora_inicio = data.get('hora_inicio')
+    hora_fin = data.get('hora_fin')
+    if hora_inicio:
+        cal.hora_inicio = datetime.strptime(hora_inicio, '%H:%M').time()
+    if hora_fin:
+        cal.hora_fin = datetime.strptime(hora_fin, '%H:%M').time()
+    cal.save()
+
+    if data.get('recalcular'):
+        tareas = TareaPlanificacion.objects.filter(proyecto=proyecto, activo=True)
+        for t in tareas:
+            if t.es_hito:
+                continue
+            dur = _dias_habiles_entre(t.fecha_inicio, t.fecha_fin, cal)
+            t.fecha_fin = _fecha_fin_desde_duracion(t.fecha_inicio, dur, cal)
+            t.save(update_fields=['fecha_fin', 'fecha_modificacion'])
+
+    cal_actualizado = CalendarioProyecto.objects.prefetch_related('feriados').get(pk=cal.pk)
+    return JsonResponse({'ok': True, 'calendario': _calendario_to_dict(cal_actualizado)})
+
+
+@login_required
+@require_POST
+def api_feriado_agregar(request, proyecto_id):
+    if not _check_perm(request, 'change'):
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+    proyecto = get_object_or_404(Proyecto, pk=proyecto_id)
+    cal, _ = CalendarioProyecto.objects.get_or_create(proyecto=proyecto)
+    data = json.loads(request.body)
+    try:
+        fecha = datetime.strptime(data['fecha'], '%Y-%m-%d').date()
+    except (KeyError, ValueError):
+        return JsonResponse({'error': 'Fecha inválida'}, status=400)
+    nombre = data.get('nombre', '').strip() or 'Feriado'
+    f, created = FeriadoCalendario.objects.get_or_create(
+        calendario=cal, fecha=fecha,
+        defaults={'nombre': nombre},
+    )
+    if not created:
+        f.nombre = nombre
+        f.save(update_fields=['nombre'])
+    return JsonResponse({'ok': True, 'feriado': {'id': f.pk, 'fecha': f.fecha.strftime('%Y-%m-%d'), 'nombre': f.nombre}})
+
+
+@login_required
+@require_POST
+def api_feriado_eliminar(request, feriado_id):
+    if not _check_perm(request, 'change'):
+        return JsonResponse({'error': 'Sin permiso'}, status=403)
+    f = get_object_or_404(FeriadoCalendario, pk=feriado_id)
+    f.delete()
     return JsonResponse({'ok': True})

@@ -451,3 +451,129 @@ function escapeHtml(str) {
     d.appendChild(document.createTextNode(str || ''));
     return d.innerHTML;
 }
+
+// ── Calendario del Proyecto ─────────────────────────────────────────────────
+
+function abrirModalCalendario() {
+    const modal = new bootstrap.Modal(document.getElementById('modalCalendario'));
+    if (CALENDARIO_INICIAL) {
+        _rellenarModalCalendario(CALENDARIO_INICIAL);
+        modal.show();
+    } else {
+        fetch(URLS.calendario, { headers: { 'X-CSRFToken': CSRF } })
+            .then(r => r.json())
+            .then(data => { _rellenarModalCalendario(data); modal.show(); });
+    }
+}
+
+function _rellenarModalCalendario(cal) {
+    ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'].forEach(dia => {
+        const el = document.getElementById('cal-' + dia);
+        if (el) el.checked = cal[dia];
+    });
+    document.getElementById('cal-hora-inicio').value = cal.hora_inicio || '08:00';
+    document.getElementById('cal-hora-fin').value = cal.hora_fin || '17:00';
+    _renderFeriados(cal.feriados || []);
+}
+
+function _renderFeriados(feriados) {
+    const lista = document.getElementById('cal-feriados-lista');
+    if (!feriados.length) {
+        lista.innerHTML = '<p class="text-muted small mb-0">Sin feriados registrados.</p>';
+        return;
+    }
+    lista.innerHTML = feriados.map(f => `
+        <div class="d-flex align-items-center justify-content-between border-bottom py-1" id="feriado-row-${f.id}">
+            <span class="small"><strong>${f.fecha}</strong> — ${escapeHtml(f.nombre)}</span>
+            <button class="btn btn-sm btn-link text-danger p-0" onclick="eliminarFeriado(${f.id})" title="Eliminar">
+                <i class="fa-solid fa-times"></i>
+            </button>
+        </div>`).join('');
+}
+
+function guardarCalendario(recalcular) {
+    const dias = {};
+    ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'].forEach(dia => {
+        dias[dia] = document.getElementById('cal-' + dia).checked;
+    });
+    const payload = {
+        ...dias,
+        hora_inicio: document.getElementById('cal-hora-inicio').value,
+        hora_fin:    document.getElementById('cal-hora-fin').value,
+        recalcular,
+    };
+    fetch(URLS.calendarioGuardar, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.ok) { alert(data.error || 'Error al guardar'); return; }
+        if (recalcular) {
+            bootstrap.Modal.getInstance(document.getElementById('modalCalendario')).hide();
+            recargarTareas();
+        } else {
+            bootstrap.Modal.getInstance(document.getElementById('modalCalendario')).hide();
+        }
+    });
+}
+
+function agregarFeriado() {
+    const fecha  = document.getElementById('cal-feriado-fecha').value;
+    const nombre = document.getElementById('cal-feriado-nombre').value.trim();
+    if (!fecha) { alert('Selecciona una fecha'); return; }
+    fetch(URLS.feriadoAgregar, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({ fecha, nombre: nombre || 'Feriado' }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.ok) { alert(data.error || 'Error'); return; }
+        document.getElementById('cal-feriado-fecha').value = '';
+        document.getElementById('cal-feriado-nombre').value = '';
+        // Recarga la lista de feriados desde el servidor
+        fetch(URLS.calendario)
+            .then(r => r.json())
+            .then(cal => _renderFeriados(cal.feriados || []));
+    });
+}
+
+function eliminarFeriado(feriadoId) {
+    if (!confirm('¿Eliminar este feriado?')) return;
+    fetch(URLS.feriadoEliminar(feriadoId), {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            const row = document.getElementById('feriado-row-' + feriadoId);
+            if (row) row.remove();
+            const lista = document.getElementById('cal-feriados-lista');
+            if (lista && !lista.querySelector('[id^=feriado-row-]')) {
+                lista.innerHTML = '<p class="text-muted small mb-0">Sin feriados registrados.</p>';
+            }
+        }
+    });
+}
+
+function recargarTareas() {
+    fetch(URLS.tareas)
+        .then(r => r.json())
+        .then(data => {
+            allTareas = data.tareas;
+            renderizarWBS(allTareas);
+            const tareasGantt = allTareas.map(t => ({
+                id: String(t.id),
+                name: t.name,
+                start: t.start,
+                end: t.end,
+                progress: t.progress,
+                dependencies: t.dependencies,
+                custom_class: t.custom_class,
+            }));
+            if (ganttInstance && tareasGantt.length) ganttInstance.refresh(tareasGantt);
+        });
+}

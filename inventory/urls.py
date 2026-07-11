@@ -175,4 +175,8 @@ urlpatterns = [
     path('planificacion/tarea/<int:pk>/progreso/', views.api_tarea_progreso, name='api_tarea_progreso'),
     path('planificacion/<int:proyecto_id>/partidas-disponibles/', views.api_partidas_gantt, name='api_partidas_gantt'),
     path('planificacion/<int:proyecto_id>/reordenar/', views.api_reordenar, name='api_reordenar'),
+    path('planificacion/<int:proyecto_id>/calendario/', views.api_calendario_get, name='api_calendario_get'),
+    path('planificacion/<int:proyecto_id>/calendario/guardar/', views.api_calendario_guardar, name='api_calendario_guardar'),
+    path('planificacion/<int:proyecto_id>/feriado/agregar/', views.api_feriado_agregar, name='api_feriado_agregar'),
+    path('planificacion/feriado/<int:feriado_id>/eliminar/', views.api_feriado_eliminar, name='api_feriado_eliminar'),
 ]

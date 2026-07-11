@@ -22,6 +22,24 @@ class ProductoListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
             qs = qs.filter(Q(nombre__icontains=q) | Q(categoria__nombre__icontains=q))
         return qs
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        proyecto = getattr(user, 'proyecto', None)
+        if proyecto and not (getattr(user, 'es_admin', False) or user.is_staff):
+            stock_map = {
+                s['producto_id']: s['cantidad']
+                for s in StockProyecto.objects.filter(proyecto=proyecto).values('producto_id', 'cantidad')
+            }
+            for producto in context['productos']:
+                producto.stock_display = stock_map.get(producto.pk, 0)
+            context['stock_context_label'] = proyecto.nombre
+        else:
+            for producto in context['productos']:
+                producto.stock_display = producto.stock_actual
+            context['stock_context_label'] = 'Global'
+        return context
+
 class ProductoCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     permission_required = 'inventory.add_producto'
     model = Producto
