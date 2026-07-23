@@ -305,7 +305,7 @@ class OrdenCompraForm(UppercaseMixin, forms.ModelForm):
         model = OrdenCompra
         fields = ['numCompra', 'proveedor', 'bodega', 'fecha_compra', 'forma_de_pago']
         widgets = {
-            'numCompra':    forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: OC-1024'}),
+            'numCompra':    forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 1024'}),
             'proveedor':    forms.Select(attrs={'class': 'form-select'}),
             'bodega':       forms.Select(attrs={'class': 'form-select'}),
             'fecha_compra': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
@@ -315,6 +315,14 @@ class OrdenCompraForm(UppercaseMixin, forms.ModelForm):
                 'placeholder': 'Seleccione o escriba forma de pago...'
             }),
         }
+
+    def clean_numCompra(self):
+        valor = self.cleaned_data.get('numCompra', '').strip()
+        if valor.upper().startswith('OC-'):
+            valor = valor[3:].strip()
+        if not valor:
+            raise forms.ValidationError('Ingrese el número de orden.')
+        return f'OC-{valor.upper()}'
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)

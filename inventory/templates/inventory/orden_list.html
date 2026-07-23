@@ -34,7 +34,18 @@
             </div>
             {% endif %}
             <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label for="{{ form.numCompra.id_for_label }}" class="form-label fw-semibold text-muted">{{ form.numCompra.label }}</label>
+                    <div class="input-group">
+                        <span class="input-group-text fw-bold">OC-</span>
+                        {{ form.numCompra }}
+                    </div>
+                    {% if form.numCompra.errors %}
+                    <div class="text-danger small mt-1">{{ form.numCompra.errors }}</div>
+                    {% endif %}
+                </div>
                 {% for field in form %}
+                {% if field.html_name != 'numCompra' %}
                 <div class="col-md-4">
                     <label for="{{ field.id_for_label }}" class="form-label fw-semibold text-muted">{{ field.label }}</label>
                     {{ field }}
@@ -42,6 +53,7 @@
                     <div class="text-danger small mt-1">{{ field.errors }}</div>
                     {% endif %}
                 </div>
+                {% endif %}
                 {% endfor %}
             </div>
 
@@ -189,6 +201,11 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
+        const numCompraInput = document.getElementById("id_numCompra");
+        if (numCompraInput && numCompraInput.value.toUpperCase().startsWith("OC-")) {
+            numCompraInput.value = numCompraInput.value.slice(3);
+        }
+
         const addDetalleBtn = document.getElementById("add-detalle");
         const detallesBody = document.getElementById("detalles-body");
         const totalForms = document.getElementById("id_detalles-TOTAL_FORMS");

@@ -109,7 +109,7 @@
                         <th>Observaciones</th>
                         <th class="text-center">Adjunto</th>
                         <th class="text-end">Monto</th>
-                        <th class="text-end pe-4">Acciones</th>
+                        <th class="text-center pe-4">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -121,9 +121,9 @@
                             <span class="badge bg-secondary-subtle text-secondary rounded-pill px-3 py-2">{{ gasto.proyecto.nombre }}</span>
                             {% else %}-{% endif %}
                         </td>
-                        <td><span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-2">{{ gasto.get_concepto_display }}</span></td>
                         <td>{{ gasto.get_tipo_documento_display|default:"-" }}</td>
                         <td>{{ gasto.num_documento|default:"-" }}</td>
+                        <td><span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-2">{{ gasto.get_concepto_display }}</span></td>
                         <td class="text-muted">{{ gasto.observaciones|default:"-" }}</td>
                         <td class="text-center">
                             {% if gasto.archivo_respaldo %}
@@ -133,13 +133,23 @@
                             {% else %}-{% endif %}
                         </td>
                         <td class="text-end fw-bold">{{ gasto.monto|clp }}</td>
-                        <td class="text-end pe-4">
-                            {% if user_perms.gasto_editar or is_admin %}
-                            <a href="{% url 'gasto_editar' gasto.pk %}" class="btn btn-sm btn-outline-info rounded-pill px-3">Editar</a>
-                            {% endif %}
-                            {% if user_perms.gasto_eliminar or is_admin %}
-                            <a href="{% url 'gasto_eliminar' gasto.pk %}" class="btn btn-sm btn-outline-danger rounded-pill px-3">Eliminar</a>
-                            {% endif %}
+                        <td class="text-center pe-4">
+                            <div class="d-flex gap-1 justify-content-center">
+                                {% if user_perms.gasto_editar or is_admin %}
+                                <a href="{% url 'gasto_editar' gasto.pk %}"
+                                   class="btn btn-sm btn-outline-warning rounded-circle"
+                                   title="Editar gasto">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </a>
+                                {% endif %}
+                                {% if user_perms.gasto_eliminar or is_admin %}
+                                <a href="{% url 'gasto_eliminar' gasto.pk %}"
+                                   class="btn btn-sm btn-outline-danger rounded-circle"
+                                   title="Eliminar gasto">
+                                    <i class="fa-solid fa-trash"></i>
+                                </a>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
