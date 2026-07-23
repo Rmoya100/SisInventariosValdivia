@@ -7,7 +7,7 @@ from .models import (
     Proyecto, Empresa, Transferencia, DetalleTransferencia, Bodega,
     Herramienta, Maquinaria, MantenimientoHerramienta, MantenimientoMaquinaria,
     TransferenciaActivo, DetalleTransferenciaActivo, ModuloTorre, Gasto, Fase, StockProyecto, Partida,
-    TareaPlanificacion,
+    TareaPlanificacion, GastoDetalleMaterial,
 )
 
 class UppercaseMixin:
@@ -793,12 +793,22 @@ class GastoForm(UppercaseMixin, forms.ModelForm):
         self.fields['proyecto'].queryset = Proyecto.objects.filter(activo=True).order_by('nombre')
         self.fields['proyecto'].required = True
         self.fields['proyecto'].empty_label = '— Seleccionar Proyecto —'
-        self.fields['tipo_documento'].required = True
+        self.fields['tipo_documento'].required = False
         self.fields['tipo_documento'].empty_label = '— Seleccionar tipo —'
-        self.fields['num_documento'].required = True
+        self.fields['num_documento'].required = False
         self.fields['archivo_respaldo'].required = False
         if not self.instance.pk:
             self.fields['fecha'].initial = datetime.date.today()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        concepto = cleaned_data.get('concepto')
+        if concepto != 'MATERIALES':
+            if not cleaned_data.get('tipo_documento'):
+                self.add_error('tipo_documento', 'Este campo es requerido.')
+            if not cleaned_data.get('num_documento'):
+                self.add_error('num_documento', 'Este campo es requerido.')
+        return cleaned_data
 
     def clean_archivo_respaldo(self):
         archivo = self.cleaned_data.get('archivo_respaldo')
@@ -809,6 +819,22 @@ class GastoForm(UppercaseMixin, forms.ModelForm):
             if archivo.size > 10 * 1024 * 1024:
                 raise forms.ValidationError('El archivo no puede superar los 10 MB.')
         return archivo
+
+class GastoDetalleMaterialForm(forms.ModelForm):
+    class Meta:
+        model = GastoDetalleMaterial
+        fields = ['producto', 'cantidad', 'precio_unit']
+        widgets = {
+            'producto':    forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'cantidad':    forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.001', 'min': '0.001'}),
+            'precio_unit': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['producto'].queryset = Producto.objects.filter(activo=True).order_by('nombre')
+        self.fields['producto'].empty_label = '— Seleccionar producto —'
+
 
 class FaseForm(forms.ModelForm):
     class Meta:
@@ -826,6 +852,11 @@ class FaseForm(forms.ModelForm):
 
 DetalleCompraFormSet = forms.inlineformset_factory(
     OrdenCompra, DetalleCompra, form=DetalleCompraForm,
+    extra=1, can_delete=True
+)
+
+GastoDetalleMaterialFormSet = forms.inlineformset_factory(
+    Gasto, GastoDetalleMaterial, form=GastoDetalleMaterialForm,
     extra=1, can_delete=True
 )
 

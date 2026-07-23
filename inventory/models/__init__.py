@@ -5,7 +5,7 @@ from .personas import Trabajador, ModuloTorre, Usuario, Permiso, SesionActiva
 from .compras import OrdenCompra, DetalleCompra
 from .movimientos import Ingreso, DetalleIngreso, Salida, DetalleSalida, Transferencia, DetalleTransferencia
 from .equipos import Herramienta, MantenimientoHerramienta, Maquinaria, MantenimientoMaquinaria, TransferenciaActivo, DetalleTransferenciaActivo
-from .gastos import Fase, Gasto
+from .gastos import Fase, Gasto, GastoDetalleMaterial
 from .historial import HistorialMovimiento
 from .planificacion import TareaPlanificacion, DependenciaTarea, CalendarioProyecto, FeriadoCalendario
 
@@ -17,7 +17,7 @@ __all__ = [
     'OrdenCompra', 'DetalleCompra',
     'Ingreso', 'DetalleIngreso', 'Salida', 'DetalleSalida', 'Transferencia', 'DetalleTransferencia',
     'Herramienta', 'MantenimientoHerramienta', 'Maquinaria', 'MantenimientoMaquinaria', 'TransferenciaActivo', 'DetalleTransferenciaActivo',
-    'Fase', 'Gasto',
+    'Fase', 'Gasto', 'GastoDetalleMaterial',
     'HistorialMovimiento',
     'TareaPlanificacion', 'DependenciaTarea', 'CalendarioProyecto', 'FeriadoCalendario',
 ]

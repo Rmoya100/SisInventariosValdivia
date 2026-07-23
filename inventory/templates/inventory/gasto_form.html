@@ -2,7 +2,7 @@
 {% block title %}{{ titulo }}{% endblock %}
 {% block content %}
 <div class="row justify-content-center mt-3">
-    <div class="col-md-8 col-lg-6">
+    <div class="col-md-11 col-lg-9">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="fw-bold mb-0 text-primary">{{ titulo }}</h2>
             <a href="{{ url_volver }}" class="btn btn-outline-secondary rounded-pill px-4 shadow-sm">← Volver atrás</a>
@@ -19,25 +19,111 @@
                         {% for error in form.proyecto.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
                     </div>
 
-                    {# Tipo y Número de Documento #}
-                    <div class="row g-3 mb-4">
+                    {# Concepto — va antes de Tipo/Num Doc. para que el JS pueda controlar su visibilidad #}
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold text-secondary">{{ form.concepto.label }}</label>
+                        {{ form.concepto }}
+                        {% for error in form.concepto.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    </div>
+
+                    {# Tipo y Número de Documento — opcionales para MATERIALES #}
+                    <div class="row g-3 mb-4" id="grupo-tipo-doc">
                         <div class="col-6">
-                            <label class="form-label fw-semibold text-secondary">{{ form.tipo_documento.label }}</label>
+                            <label class="form-label fw-semibold text-secondary">
+                                {{ form.tipo_documento.label }}
+                                <span id="label-tipo-opcional" class="text-muted fw-normal small d-none">(opcional)</span>
+                            </label>
                             {{ form.tipo_documento }}
                             {% for error in form.tipo_documento.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
                         </div>
                         <div class="col-6">
-                            <label class="form-label fw-semibold text-secondary">{{ form.num_documento.label }}</label>
+                            <label class="form-label fw-semibold text-secondary">
+                                {{ form.num_documento.label }}
+                                <span id="label-num-opcional" class="text-muted fw-normal small d-none">(opcional)</span>
+                            </label>
                             {{ form.num_documento }}
                             {% for error in form.num_documento.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
                         </div>
                     </div>
 
-                    {# Concepto #}
-                    <div class="mb-4">
-                        <label class="form-label fw-semibold text-secondary">{{ form.concepto.label }}</label>
-                        {{ form.concepto }}
-                        {% for error in form.concepto.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                    {# Sección de materiales — visible solo cuando concepto = MATERIALES #}
+                    <div id="seccion-materiales" class="d-none mb-4">
+                        <hr class="mb-3 text-muted">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-primary mb-0">
+                                <i class="fa-solid fa-boxes-stacked me-2"></i>Detalle de Materiales
+                            </h6>
+                            <button type="button" id="btn-agregar-material" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                <i class="fa-solid fa-plus me-1"></i>Agregar Material
+                            </button>
+                        </div>
+
+                        {{ detalles.management_form }}
+
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-2" id="tabla-materiales">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th style="width:110px">Cantidad</th>
+                                        <th style="width:130px">Precio Unit.</th>
+                                        <th style="width:120px" class="text-end">Subtotal</th>
+                                        <th style="width:40px"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="materiales-body">
+                                    {% for f in detalles %}
+                                    {% if f.instance.pk or f.has_changed %}
+                                    <tr class="material-form-row">
+                                        <td>
+                                            {{ f.producto }}
+                                            {% for e in f.producto.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                                        </td>
+                                        <td>
+                                            {{ f.cantidad }}
+                                            {% for e in f.cantidad.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                                        </td>
+                                        <td>
+                                            {{ f.precio_unit }}
+                                            {% for e in f.precio_unit.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                                        </td>
+                                        <td class="text-end fw-semibold subtotal-col text-muted">-</td>
+                                        <td class="text-center">
+                                            {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+                                            {{ f.DELETE }}
+                                            <button type="button" class="btn btn-sm btn-outline-danger rounded-circle btn-quitar" title="Quitar">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="materiales-vacio" class="text-center text-muted small py-2">
+                            Agrega materiales usando el botón de arriba.
+                        </div>
+
+                        {# Template row para clonado JS (usa empty_form con __prefix__) #}
+                        <table class="d-none">
+                            <tbody>
+                                <tr class="material-form-row" id="material-empty-row">
+                                    <td>{{ detalles.empty_form.producto }}</td>
+                                    <td>{{ detalles.empty_form.cantidad }}</td>
+                                    <td>{{ detalles.empty_form.precio_unit }}</td>
+                                    <td class="text-end fw-semibold subtotal-col text-muted">-</td>
+                                    <td class="text-center">
+                                        {% for hidden in detalles.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+                                        {{ detalles.empty_form.DELETE }}
+                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-circle btn-quitar" title="Quitar">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <hr class="mt-3 text-muted">
                     </div>
 
                     {# Fecha #}
@@ -49,7 +135,10 @@
 
                     {# Monto — con preview CLP en vivo #}
                     <div class="mb-4">
-                        <label class="form-label fw-semibold text-secondary">{{ form.monto.label }}</label>
+                        <label class="form-label fw-semibold text-secondary">
+                            {{ form.monto.label }}
+                            <span id="label-monto-auto" class="text-muted fw-normal small d-none">(auto-calculado desde materiales)</span>
+                        </label>
                         {{ form.monto }}
                         <div id="monto_preview" class="mt-1 fw-bold text-primary" style="font-size:1.1rem; min-height:1.4rem;"></div>
                         {% for error in form.monto.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
@@ -94,10 +183,20 @@
 
 <script>
 (function () {
-    var montoInput     = document.getElementById('id_monto');
-    var montoPreview   = document.getElementById('monto_preview');
-    var archivoInput   = document.querySelector('input[name="archivo_respaldo"]');
-    var archivoPreview = document.getElementById('archivo_preview');
+    var conceptoSelect     = document.getElementById('id_concepto');
+    var seccionMateriales  = document.getElementById('seccion-materiales');
+    var materialesBody     = document.getElementById('materiales-body');
+    var materialesVacio    = document.getElementById('materiales-vacio');
+    var emptyRow           = document.getElementById('material-empty-row');
+    var btnAgregar         = document.getElementById('btn-agregar-material');
+    var totalFormsInput    = document.querySelector('[name="materiales-TOTAL_FORMS"]');
+    var montoInput         = document.getElementById('id_monto');
+    var montoPreview       = document.getElementById('monto_preview');
+    var archivoInput       = document.querySelector('input[name="archivo_respaldo"]');
+    var archivoPreview     = document.getElementById('archivo_preview');
+    var labelMontoAuto     = document.getElementById('label-monto-auto');
+    var labelTipoOpc       = document.getElementById('label-tipo-opcional');
+    var labelNumOpc        = document.getElementById('label-num-opcional');
 
     var fmtCLP = new Intl.NumberFormat('es-CL', {
         style: 'currency', currency: 'CLP', maximumFractionDigits: 0
@@ -108,25 +207,96 @@
         montoPreview.textContent = isNaN(val) || montoInput.value === '' ? '' : fmtCLP.format(val);
     }
 
-    function updateArchivoPreview() {
-        var file = archivoInput.files[0];
-        if (!file) { archivoPreview.style.display = 'none'; return; }
-        archivoPreview.style.display = '';
-        if (file.type.startsWith('image/')) {
-            var reader = new FileReader();
-            reader.onload = function(e) {
-                archivoPreview.innerHTML = '<img src="' + e.target.result + '" class="img-thumbnail rounded-3" style="max-height:200px;">';
-            };
-            reader.readAsDataURL(file);
-        } else {
-            archivoPreview.innerHTML = '<span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-2"><i class="fa-solid fa-file-pdf me-1"></i>' + file.name + '</span>';
+    function recalcularTotal() {
+        var total = 0;
+        materialesBody.querySelectorAll('.material-form-row').forEach(function(row) {
+            if (row.classList.contains('d-none')) return;
+            var deleteChk = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+            if (deleteChk && deleteChk.checked) return;
+            var qty   = parseFloat(row.querySelector('input[name$="-cantidad"]').value) || 0;
+            var price = parseFloat(row.querySelector('input[name$="-precio_unit"]').value) || 0;
+            var sub   = qty * price;
+            var subCol = row.querySelector('.subtotal-col');
+            subCol.textContent = sub > 0 ? fmtCLP.format(sub) : '-';
+            total += sub;
+        });
+        montoInput.value = total > 0 ? Math.round(total) : '';
+        updateMontoPreview();
+        updateVacioMsg();
+    }
+
+    function updateVacioMsg() {
+        var hasVisible = materialesBody.querySelectorAll('.material-form-row:not(.d-none)').length > 0;
+        materialesVacio.classList.toggle('d-none', hasVisible);
+    }
+
+    function bindRowEvents(row) {
+        row.querySelectorAll('input[name$="-cantidad"], input[name$="-precio_unit"]').forEach(function(inp) {
+            inp.addEventListener('input', recalcularTotal);
+        });
+        var btnQuitar = row.querySelector('.btn-quitar');
+        if (btnQuitar) {
+            btnQuitar.addEventListener('click', function() {
+                var deleteChk = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+                if (deleteChk) {
+                    deleteChk.checked = true;
+                }
+                row.classList.add('d-none');
+                recalcularTotal();
+            });
         }
     }
 
-    montoInput.addEventListener('input', updateMontoPreview);
-    if (archivoInput) archivoInput.addEventListener('change', updateArchivoPreview);
+    function addRow() {
+        var idx = parseInt(totalFormsInput.value);
+        var clone = emptyRow.cloneNode(true);
+        clone.removeAttribute('id');
+        clone.classList.remove('d-none');
+        clone.innerHTML = clone.innerHTML.replaceAll('__prefix__', String(idx));
+        totalFormsInput.value = idx + 1;
+        materialesBody.appendChild(clone);
+        bindRowEvents(clone);
+        updateVacioMsg();
+    }
 
+    function toggleMateriales() {
+        var isMat = conceptoSelect.value === 'MATERIALES';
+        seccionMateriales.classList.toggle('d-none', !isMat);
+        labelMontoAuto.classList.toggle('d-none', !isMat);
+        labelTipoOpc.classList.toggle('d-none', !isMat);
+        labelNumOpc.classList.toggle('d-none', !isMat);
+        if (isMat) recalcularTotal();
+    }
+
+    // Bind events on existing rows
+    materialesBody.querySelectorAll('.material-form-row').forEach(bindRowEvents);
+
+    btnAgregar.addEventListener('click', addRow);
+    conceptoSelect.addEventListener('change', toggleMateriales);
+
+    montoInput.addEventListener('input', updateMontoPreview);
+    if (archivoInput) {
+        archivoInput.addEventListener('change', function() {
+            var file = archivoInput.files[0];
+            if (!file) { archivoPreview.style.display = 'none'; return; }
+            archivoPreview.style.display = '';
+            if (file.type.startsWith('image/')) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    archivoPreview.innerHTML = '<img src="' + e.target.result + '" class="img-thumbnail rounded-3" style="max-height:200px;">';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                archivoPreview.innerHTML = '<span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-2"><i class="fa-solid fa-file-pdf me-1"></i>' + file.name + '</span>';
+            }
+        });
+    }
+
+    // Init
+    toggleMateriales();
     updateMontoPreview();
+    recalcularTotal();
+    updateVacioMsg();
 })();
 </script>
 {% endblock %}

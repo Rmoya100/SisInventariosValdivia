@@ -3,10 +3,11 @@ from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, TemplateView
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import transaction
 from django.db.models import Q, Sum
 from ..mixins import AdminOrPermissionRequiredMixin as PermissionRequiredMixin
 from ..models import Gasto, Fase, Proyecto, DetalleIngreso
-from ..forms import GastoForm, FaseForm
+from ..forms import GastoForm, FaseForm, GastoDetalleMaterialFormSet
 
 
 class GastoListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -72,11 +73,26 @@ class GastoCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         context = super().get_context_data(**kwargs)
         context['titulo'] = 'Registrar Gasto'
         context['url_volver'] = reverse_lazy('gastos')
+        if self.request.POST:
+            context['detalles'] = GastoDetalleMaterialFormSet(self.request.POST, prefix='materiales')
+        else:
+            context['detalles'] = GastoDetalleMaterialFormSet(prefix='materiales')
         return context
 
     def form_valid(self, form):
+        with transaction.atomic():
+            self.object = form.save(commit=False)
+            if self.object.concepto == 'MATERIALES':
+                detalles = GastoDetalleMaterialFormSet(self.request.POST, prefix='materiales')
+                if not detalles.is_valid():
+                    return self.render_to_response(self.get_context_data(form=form))
+                self.object.save()
+                detalles.instance = self.object
+                detalles.save()
+            else:
+                self.object.save()
         messages.success(self.request, 'Gasto registrado correctamente.')
-        return super().form_valid(form)
+        return redirect(self.success_url)
 
 
 class GastoUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
@@ -90,11 +106,32 @@ class GastoUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context['titulo'] = 'Editar Gasto'
         context['url_volver'] = reverse_lazy('gastos')
+        if self.request.POST:
+            context['detalles'] = GastoDetalleMaterialFormSet(
+                self.request.POST, instance=self.object, prefix='materiales'
+            )
+        else:
+            context['detalles'] = GastoDetalleMaterialFormSet(
+                instance=self.object, prefix='materiales'
+            )
         return context
 
     def form_valid(self, form):
+        with transaction.atomic():
+            self.object = form.save()
+            if self.object.concepto == 'MATERIALES':
+                detalles = GastoDetalleMaterialFormSet(
+                    self.request.POST, instance=self.object, prefix='materiales'
+                )
+                if not detalles.is_valid():
+                    transaction.set_rollback(True)
+                    return self.render_to_response(self.get_context_data(form=form))
+                detalles.save()
+            else:
+                for detalle in self.object.detalles_material.all():
+                    detalle.delete()
         messages.success(self.request, 'Gasto actualizado correctamente.')
-        return super().form_valid(form)
+        return redirect(self.success_url)
 
 
 class GastoDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
@@ -111,6 +148,8 @@ class GastoDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
         return context
 
     def form_valid(self, form):
+        for detalle in self.object.detalles_material.all():
+            detalle.delete()
         self.object.activo = False
         self.object.save(update_fields=['activo'])
         messages.success(self.request, 'Gasto eliminado correctamente.')
