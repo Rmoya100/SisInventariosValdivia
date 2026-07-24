@@ -102,10 +102,15 @@ class PlanificacionListView(LoginRequiredMixin, ListView):
     context_object_name = 'proyectos'
 
     def get_queryset(self):
-        qs = Proyecto.objects.all().order_by('nombre')
+        qs = Proyecto.all_objects.all().order_by('nombre')
         q = self.request.GET.get('q', '').strip()
+        estado = self.request.GET.get('estado')
         if q:
             qs = qs.filter(nombre__icontains=q)
+        if estado == 'activo':
+            qs = qs.filter(activo=True)
+        elif estado == 'inactivo':
+            qs = qs.filter(activo=False)
         return qs
 
     def get_context_data(self, **kwargs):
@@ -122,6 +127,7 @@ class PlanificacionListView(LoginRequiredMixin, ListView):
             })
         ctx['proyectos_data'] = proyectos_data
         ctx['q'] = self.request.GET.get('q', '')
+        ctx['estado'] = self.request.GET.get('estado', '')
         return ctx
 
 

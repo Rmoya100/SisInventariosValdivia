@@ -24,9 +24,20 @@
 </div>
 
 <form method="get" class="mb-4">
-    <div class="input-group shadow-sm rounded-pill overflow-hidden">
-        <input type="text" name="q" value="{{ request.GET.q }}" class="form-control border-0 px-4 py-2 bg-white" placeholder="Buscar por nombre de proyecto...">
-        <button class="btn btn-primary px-4 fw-bold" type="submit">Buscar</button>
+    <div class="row g-2 align-items-center">
+        <div class="col-md-6">
+            <div class="input-group shadow-sm rounded-pill overflow-hidden">
+                <input type="text" name="q" value="{{ request.GET.q }}" class="form-control border-0 px-4 py-2 bg-white" placeholder="Buscar por nombre de proyecto...">
+                <button class="btn btn-primary px-4 fw-bold" type="submit">Buscar</button>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select name="estado" class="form-select shadow-sm" onchange="this.form.submit()">
+                <option value="">Todos los estados</option>
+                <option value="activo" {% if request.GET.estado == 'activo' %}selected{% endif %}>Solo activos</option>
+                <option value="inactivo" {% if request.GET.estado == 'inactivo' %}selected{% endif %}>Solo inactivos</option>
+            </select>
+        </div>
     </div>
 </form>
 
@@ -44,7 +55,7 @@
             </thead>
             <tbody>
                 {% for proyecto in proyectos %}
-                <tr>
+                <tr {% if not proyecto.activo %}class="table-secondary text-muted"{% endif %}>
                     <td class="ps-4 text-muted">#{{ proyecto.idProyecto }}</td>
                     <td class="fw-bold">{{ proyecto.nombre }}</td>
                     <td>{{ proyecto.descripcion|truncatechars:50|default:"Sin descripción" }}</td>
@@ -85,7 +96,7 @@
     <ul class="pagination justify-content-center">
         {% if page_obj.has_previous %}
         <li class="page-item">
-            <a class="page-link rounded-pill me-1" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}page={{ page_obj.previous_page_number }}">← Anterior</a>
+            <a class="page-link rounded-pill me-1" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.estado %}estado={{ request.GET.estado }}&{% endif %}page={{ page_obj.previous_page_number }}">← Anterior</a>
         </li>
         {% endif %}
         <li class="page-item disabled">
@@ -95,7 +106,7 @@
         </li>
         {% if page_obj.has_next %}
         <li class="page-item">
-            <a class="page-link rounded-pill ms-1" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente →</a>
+            <a class="page-link rounded-pill ms-1" href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.estado %}estado={{ request.GET.estado }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente →</a>
         </li>
         {% endif %}
     </ul>

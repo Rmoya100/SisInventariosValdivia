@@ -17,9 +17,20 @@
 </div>
 
 <form method="get" class="mb-4">
-    <div class="input-group shadow-sm rounded-pill overflow-hidden">
-        <input type="text" name="q" value="{{ q }}" class="form-control border-0 px-4 py-2 bg-white" placeholder="Buscar proyecto...">
-        <button class="btn btn-primary px-4 fw-bold" type="submit">Buscar</button>
+    <div class="row g-2 align-items-center">
+        <div class="col-md-6">
+            <div class="input-group shadow-sm rounded-pill overflow-hidden">
+                <input type="text" name="q" value="{{ q }}" class="form-control border-0 px-4 py-2 bg-white" placeholder="Buscar proyecto...">
+                <button class="btn btn-primary px-4 fw-bold" type="submit">Buscar</button>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select name="estado" class="form-select shadow-sm" onchange="this.form.submit()">
+                <option value="">Todos los estados</option>
+                <option value="activo" {% if estado == 'activo' %}selected{% endif %}>Solo activos</option>
+                <option value="inactivo" {% if estado == 'inactivo' %}selected{% endif %}>Solo inactivos</option>
+            </select>
+        </div>
     </div>
 </form>
 
@@ -38,9 +49,14 @@
             <tbody>
                 {% for item in proyectos_data %}
                 {% with p=item.proyecto %}
-                <tr>
+                <tr {% if not p.activo %}class="table-secondary text-muted"{% endif %}>
                     <td class="ps-4">
-                        <div class="fw-bold">{{ p.nombre }}</div>
+                        <div class="fw-bold">
+                            {{ p.nombre }}
+                            {% if not p.activo %}
+                            <span class="badge bg-danger rounded-pill ms-2" style="font-size:0.7rem;">Inactivo</span>
+                            {% endif %}
+                        </div>
                         {% if p.descripcion %}
                         <div class="text-muted" style="font-size:0.78rem;">{{ p.descripcion|truncatechars:60 }}</div>
                         {% endif %}

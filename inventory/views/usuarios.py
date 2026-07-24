@@ -401,6 +401,18 @@ class ProyectoListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     context_object_name = 'proyectos'
     paginate_by = 25
 
+    def get_queryset(self):
+        qs = Proyecto.all_objects.order_by('nombre')
+        q = self.request.GET.get('q', '').strip()
+        estado = self.request.GET.get('estado')
+        if q:
+            qs = qs.filter(nombre__icontains=q)
+        if estado == 'activo':
+            qs = qs.filter(activo=True)
+        elif estado == 'inactivo':
+            qs = qs.filter(activo=False)
+        return qs
+
 class ProyectoCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     permission_required = 'inventory.add_proyecto'
     model = Proyecto
@@ -420,6 +432,9 @@ class ProyectoUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView
     form_class = ProyectoForm
     template_name = 'inventory/form.html'
     success_url = reverse_lazy('proyectos')
+
+    def get_queryset(self):
+        return Proyecto.all_objects.all()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
