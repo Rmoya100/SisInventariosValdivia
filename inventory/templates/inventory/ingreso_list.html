@@ -173,7 +173,7 @@
         </div>
         {% if ingresos %}
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table class="table table-hover align-middle" id="ingresos-table">
                 <thead class="table-light">
                     <tr>
                         <th>#</th>
@@ -216,12 +216,29 @@
                 </tbody>
             </table>
         </div>
-        {% include 'inventory/includes/paginacion.html' %}
         {% else %}
         <p class="text-muted text-center py-3">No hay ingresos registrados.</p>
         {% endif %}
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    if ($('#ingresos-table').length) {
+        $('#ingresos-table').DataTable({
+            "language": { "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json" },
+            "pageLength": 25,
+            "ordering": true,
+            "responsive": true,
+            "searching": false,
+            "dom": 'rt<"d-flex justify-content-between align-items-center mt-3"ip>',
+            "order": [[0, "desc"]],
+        });
+    }
+});
+</script>
+{% endblock %}
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {

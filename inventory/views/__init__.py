@@ -43,7 +43,7 @@ from .planificacion import (
     api_feriado_agregar, api_feriado_eliminar,
 )
 from .reportes import (
-    reporte_compras_pdf, reporte_oc_pendientes_pdf, reporte_ingresos_pdf, reporte_ingreso_detail_pdf, reporte_salidas_pdf,
+    reporte_compras_pdf, reporte_oc_pendientes_pdf, reporte_ingresos_pdf, reporte_ingreso_detail_pdf, reporte_orden_compra_detail_pdf, reporte_salidas_pdf,
     reporte_productos_pdf, reporte_proveedores_pdf, reporte_categorias_pdf, reporte_transferencia_pdf,
     reporte_compras_list_view, reporte_stock_bodega_list_view, reporte_stock_bodega_pdf, exportar_stock_bodega_excel,
     reporte_movimiento_general_list_view, reporte_movimiento_general_pdf, exportar_movimiento_general_excel,

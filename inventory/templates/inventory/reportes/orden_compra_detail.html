@@ -1,0 +1,99 @@
+{% extends 'inventory/reportes/base_pdf.html' %}
+{% load humanize %}
+
+{% block title %}Orden de Compra #{{ orden.numCompra }}{% endblock %}
+{% block report_section %}Orden de Compra{% endblock %}
+{% block report_title %}Orden N° {{ orden.numCompra }}{% endblock %}
+
+{% block report_filters %}
+<div class="rpt-filters">
+    {{ orden.proveedor.nombre }}
+    &nbsp;&#183;&nbsp; Fecha: {{ orden.fecha_compra|date:"d/m/Y" }}
+    &nbsp;&#183;&nbsp;
+    {% if orden.estado == 'PENDIENTE' %}Pendiente
+    {% elif orden.estado == 'RECEPCION PARCIAL' %}Recepción Parcial
+    {% else %}Recepción Completa{% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+
+<table class="info-table">
+    <tr>
+        <td class="lbl">N° Orden</td>
+        <td class="bold mono">{{ orden.numCompra }}</td>
+        <td class="lbl">Fecha</td>
+        <td class="bold">{{ orden.fecha_compra|date:"d/m/Y" }}</td>
+    </tr>
+    <tr>
+        <td class="lbl">Proveedor</td>
+        <td class="bold">{{ orden.proveedor.nombre }}</td>
+        <td class="lbl">Proyecto / Bodega</td>
+        <td class="bold">{{ orden.proyecto.nombre|default:"—" }}{% if orden.bodega %} / {{ orden.bodega.nombre }}{% endif %}</td>
+    </tr>
+    <tr>
+        <td class="lbl">Forma de Pago</td>
+        <td>{{ orden.forma_de_pago }}</td>
+        <td class="lbl">Estado</td>
+        <td>
+            {% if orden.estado == 'PENDIENTE' %}
+                <span class="badge badge-warning">Pendiente</span>
+            {% elif orden.estado == 'RECEPCION PARCIAL' %}
+                <span class="badge badge-info">Recepción Parcial</span>
+            {% else %}
+                <span class="badge badge-success">Recepción Completa</span>
+            {% endif %}
+        </td>
+    </tr>
+</table>
+
+<table class="rpt-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Producto</th>
+            <th class="text-right">Cantidad</th>
+            <th class="text-right">Precio Unit.</th>
+            <th class="text-right">Subtotal</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for det in orden.detalles.all %}
+        <tr>
+            <td class="counter">{{ forloop.counter }}</td>
+            <td class="bold">{{ det.producto.nombre }}</td>
+            <td class="text-right">{{ det.cantidad }} un.</td>
+            <td class="text-right">${{ det.precio|floatformat:0|intcomma }}</td>
+            <td class="text-right bold">${{ det.subtotal|floatformat:0|intcomma }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center muted" style="padding:20px;">Sin productos registrados.</td></tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr class="total-row">
+            <td colspan="4" class="text-right">TOTAL ORDEN</td>
+            <td class="text-right">${{ total_orden|floatformat:0|intcomma }}</td>
+        </tr>
+    </tfoot>
+</table>
+
+<div class="signature-section">
+    <div class="sig-box">
+        <div class="sig-line">AUTORIZADO POR</div>
+        <div class="sig-name">_____________________</div>
+        <div class="sig-role">Nombre y RUT</div>
+    </div>
+    <div class="sig-box">
+        <div class="sig-line">PROVEEDOR</div>
+        <div class="sig-name">{{ orden.proveedor.nombre }}</div>
+        <div class="sig-role">Fecha: {{ orden.fecha_compra|date:"d/m/Y" }}</div>
+    </div>
+    <div class="sig-box">
+        <div class="sig-line">BODEGA / PROYECTO</div>
+        <div class="sig-name">{{ orden.proyecto.nombre|default:"—" }}</div>
+        <div class="sig-role">{{ orden.bodega.nombre|default:"" }}</div>
+    </div>
+</div>
+
+{% endblock %}

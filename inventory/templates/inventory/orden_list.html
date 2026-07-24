@@ -567,4 +567,68 @@
     });
 </script>
 {% endif %}
+
+<div class="card shadow-sm border-0 rounded-4 mt-4">
+    <div class="card-body p-4">
+        <h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-list text-warning me-2"></i>Órdenes de Compra Registradas</h5>
+        <div class="table-responsive">
+            <table class="table align-middle datatable">
+                <thead class="table-light">
+                    <tr>
+                        <th>N° Orden</th>
+                        <th>Proveedor</th>
+                        <th>Proyecto</th>
+                        <th>Fecha</th>
+                        <th>Forma de Pago</th>
+                        <th class="text-center">Estado</th>
+                        <th class="text-center">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ord in ordenes %}
+                    <tr>
+                        <td><strong>{{ ord.numCompra }}</strong></td>
+                        <td>{{ ord.proveedor.nombre }}</td>
+                        <td>{{ ord.proyecto.nombre|default:"Sin Proyecto" }}</td>
+                        <td>{{ ord.fecha_compra|date:"d/m/Y" }}</td>
+                        <td>{{ ord.forma_de_pago }}</td>
+                        <td class="text-center">
+                            {% if ord.estado == 'PENDIENTE' %}
+                            <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">Pendiente</span>
+                            {% elif ord.estado == 'RECEPCION PARCIAL' %}
+                            <span class="badge bg-info text-white px-3 py-2 rounded-pill">Parcial</span>
+                            {% else %}
+                            <span class="badge bg-success text-white px-3 py-2 rounded-pill">Recepcionado</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="d-flex gap-1 justify-content-center">
+                                {% if user_perms.ord_editar or is_admin %}
+                                    {% if ord.estado != 'RECEPCION OK' %}
+                                    <a href="{% url 'orden_compra_editar' ord.pk %}"
+                                       class="btn btn-sm btn-outline-warning rounded-circle"
+                                       title="Editar OC #{{ ord.numCompra }}">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </a>
+                                    {% endif %}
+                                {% endif %}
+                                <a href="{% url 'reporte_orden_compra_detail_pdf' ord.pk %}"
+                                   target="_blank"
+                                   class="btn btn-sm btn-outline-danger rounded-circle"
+                                   title="Ver PDF OC #{{ ord.numCompra }}">
+                                    <i class="fa-solid fa-file-pdf"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">No hay órdenes de compra registradas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}

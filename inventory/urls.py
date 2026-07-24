@@ -85,6 +85,7 @@ urlpatterns = [
     path('reportes/gasto-modulo-torre/excel/', views.exportar_gasto_modulo_torre_excel, name='exportar_gasto_modulo_excel'),
     path('reportes/ingresos/', views.reporte_ingresos_pdf, name='reporte_ingresos_pdf'),
     path('reportes/ingresos/<int:pk>/', views.reporte_ingreso_detail_pdf, name='reporte_ingreso_detail_pdf'),
+    path('reportes/ordenes/<int:pk>/', views.reporte_orden_compra_detail_pdf, name='reporte_orden_compra_detail_pdf'),
     path('reportes/salidas/', views.reporte_salidas_pdf, name='reporte_salidas_pdf'),
     path('reportes/productos/', views.reporte_productos_pdf, name='reporte_productos_pdf'),
     path('reportes/proveedores/', views.reporte_proveedores_pdf, name='reporte_proveedores_pdf'),

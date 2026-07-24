@@ -102,6 +102,19 @@ def reporte_ingreso_detail_pdf(request, pk):
     return render(request, 'inventory/reportes/ingreso_detail.html', context)
 
 @login_required
+@permission_required('inventory.view_ordencompra', raise_exception=True)
+def reporte_orden_compra_detail_pdf(request, pk):
+    orden = get_object_or_404(OrdenCompra, pk=pk)
+    empresa = Empresa.objects.first()
+    total_orden = orden.detalles.aggregate(total=Sum('subtotal'))['total'] or 0
+    context = {
+        'orden': orden,
+        'empresa': empresa,
+        'total_orden': total_orden,
+    }
+    return render(request, 'inventory/reportes/orden_compra_detail.html', context)
+
+@login_required
 @permission_required('inventory.view_salida', raise_exception=True)
 def reporte_salidas_pdf(request):
     empresa = Empresa.objects.first()

@@ -350,11 +350,7 @@ class IngresoView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         if q:
             ingresos = ingresos.filter(Q(orden_compra__numCompra__icontains=q) | Q(tipo_documento__icontains=q) | Q(num_documento__icontains=q) | Q(numIngreso__icontains=q))
 
-        from django.core.paginator import Paginator
-        paginator = Paginator(ingresos.order_by('numIngreso'), 25)
-        page_obj = paginator.get_page(self.request.GET.get('page', 1))
-        context['ingresos'] = page_obj
-        context['page_obj'] = page_obj
+        context['ingresos'] = ingresos.order_by('numIngreso')
         return context
 
     def form_valid(self, form):

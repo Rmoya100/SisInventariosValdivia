@@ -85,7 +85,7 @@ class OrdenCompraView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         return kwargs
 
     def get_queryset(self):
-        qs = OrdenCompra.objects.all().select_related('proveedor')
+        qs = OrdenCompra.objects.all().select_related('proveedor', 'proyecto')
         if self.request.user.proyecto and not self.request.user.es_admin:
             qs = qs.filter(proyecto=self.request.user.proyecto)
         return qs
@@ -201,6 +201,10 @@ class OrdenCompraUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
         context['productos_data'] = list(
             Producto.objects.all().order_by('nombre').values('cod_prod', 'nombre', 'stock_actual')
         )
+        ordenes = OrdenCompra.objects.all().select_related('proveedor', 'proyecto')
+        if self.request.user.proyecto and not self.request.user.es_admin:
+            ordenes = ordenes.filter(proyecto=self.request.user.proyecto)
+        context['ordenes'] = ordenes
         return context
 
     def form_valid(self, form):
